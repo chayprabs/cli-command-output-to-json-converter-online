@@ -1,0 +1,714 @@
+[
+  {
+    "slug": "acpi",
+    "description": "`acpi` command parser"
+  },
+  {
+    "slug": "airport",
+    "description": "`airport -I` command parser"
+  },
+  {
+    "slug": "airport-s",
+    "description": "`airport -s` command parser"
+  },
+  {
+    "slug": "amixer",
+    "description": "`amixer` command parser"
+  },
+  {
+    "slug": "apt-cache-show",
+    "description": "`apt-cache show` command parser"
+  },
+  {
+    "slug": "apt-get-sqq",
+    "description": "`apt-get -sqq` command parser"
+  },
+  {
+    "slug": "arp",
+    "description": "`arp` command parser"
+  },
+  {
+    "slug": "asciitable",
+    "description": "ASCII and Unicode table parser"
+  },
+  {
+    "slug": "asciitable-m",
+    "description": "multi-line ASCII and Unicode table parser"
+  },
+  {
+    "slug": "blkid",
+    "description": "`blkid` command parser"
+  },
+  {
+    "slug": "bluetoothctl",
+    "description": "`bluetoothctl` command parser"
+  },
+  {
+    "slug": "cbt",
+    "description": "`cbt` (Google Bigtable) command parser"
+  },
+  {
+    "slug": "cef",
+    "description": "CEF string parser"
+  },
+  {
+    "slug": "cef-s",
+    "description": "CEF string streaming parser"
+  },
+  {
+    "slug": "certbot",
+    "description": "`certbot` command parser"
+  },
+  {
+    "slug": "chage",
+    "description": "`chage --list` command parser"
+  },
+  {
+    "slug": "cksum",
+    "description": "`cksum` and `sum` command parser"
+  },
+  {
+    "slug": "clf",
+    "description": "Common and Combined Log Format file parser"
+  },
+  {
+    "slug": "clf-s",
+    "description": "Common and Combined Log Format file streaming parser"
+  },
+  {
+    "slug": "crontab",
+    "description": "`crontab` command and file parser"
+  },
+  {
+    "slug": "crontab-u",
+    "description": "`crontab` file parser with user support"
+  },
+  {
+    "slug": "csv",
+    "description": "CSV file parser"
+  },
+  {
+    "slug": "csv-s",
+    "description": "CSV file streaming parser"
+  },
+  {
+    "slug": "curl-head",
+    "description": "`curl --head` command parser"
+  },
+  {
+    "slug": "date",
+    "description": "`date` command parser"
+  },
+  {
+    "slug": "datetime-iso",
+    "description": "ISO 8601 Datetime string parser"
+  },
+  {
+    "slug": "debconf-show",
+    "description": "`debconf-show` command parser"
+  },
+  {
+    "slug": "df",
+    "description": "`df` command parser"
+  },
+  {
+    "slug": "dig",
+    "description": "`dig` command parser"
+  },
+  {
+    "slug": "dir",
+    "description": "`dir` command parser"
+  },
+  {
+    "slug": "dmidecode",
+    "description": "`dmidecode` command parser"
+  },
+  {
+    "slug": "dpkg-l",
+    "description": "`dpkg -l` command parser"
+  },
+  {
+    "slug": "du",
+    "description": "`du` command parser"
+  },
+  {
+    "slug": "efibootmgr",
+    "description": "`efibootmgr` command parser"
+  },
+  {
+    "slug": "email-address",
+    "description": "Email Address string parser"
+  },
+  {
+    "slug": "env",
+    "description": "`env` command parser"
+  },
+  {
+    "slug": "ethtool",
+    "description": "`ethtool` command parser"
+  },
+  {
+    "slug": "file",
+    "description": "`file` command parser"
+  },
+  {
+    "slug": "find",
+    "description": "`find` command parser"
+  },
+  {
+    "slug": "findmnt",
+    "description": "`findmnt` command parser"
+  },
+  {
+    "slug": "finger",
+    "description": "`finger` command parser"
+  },
+  {
+    "slug": "free",
+    "description": "`free` command parser"
+  },
+  {
+    "slug": "fstab",
+    "description": "`/etc/fstab` file parser"
+  },
+  {
+    "slug": "git-log",
+    "description": "`git log` command parser"
+  },
+  {
+    "slug": "git-log-s",
+    "description": "`git log` command streaming parser"
+  },
+  {
+    "slug": "git-ls-remote",
+    "description": "`git ls-remote` command parser"
+  },
+  {
+    "slug": "gpg",
+    "description": "`gpg --with-colons` command parser"
+  },
+  {
+    "slug": "group",
+    "description": "`/etc/group` file parser"
+  },
+  {
+    "slug": "gshadow",
+    "description": "`/etc/gshadow` file parser"
+  },
+  {
+    "slug": "hash",
+    "description": "`hash` command parser"
+  },
+  {
+    "slug": "hashsum",
+    "description": "hashsum command parser (`md5sum`, `shasum`, etc.)"
+  },
+  {
+    "slug": "hciconfig",
+    "description": "`hciconfig` command parser"
+  },
+  {
+    "slug": "history",
+    "description": "`history` command parser"
+  },
+  {
+    "slug": "host",
+    "description": "`host` command parser"
+  },
+  {
+    "slug": "hosts",
+    "description": "`/etc/hosts` file parser"
+  },
+  {
+    "slug": "http-headers",
+    "description": "HTTP headers parser"
+  },
+  {
+    "slug": "id",
+    "description": "`id` command parser"
+  },
+  {
+    "slug": "ifconfig",
+    "description": "`ifconfig` command parser"
+  },
+  {
+    "slug": "ini",
+    "description": "INI file parser"
+  },
+  {
+    "slug": "ini-dup",
+    "description": "INI with duplicate key file parser"
+  },
+  {
+    "slug": "iostat",
+    "description": "`iostat` command parser"
+  },
+  {
+    "slug": "iostat-s",
+    "description": "`iostat` command streaming parser"
+  },
+  {
+    "slug": "ip-address",
+    "description": "IPv4 and IPv6 Address string parser"
+  },
+  {
+    "slug": "ip-route",
+    "description": "`ip route` command parser"
+  },
+  {
+    "slug": "ipconfig",
+    "description": "`ipconfig` Windows command parser"
+  },
+  {
+    "slug": "iptables",
+    "description": "`iptables` command parser"
+  },
+  {
+    "slug": "iw-scan",
+    "description": "`iw dev [device] scan` command parser"
+  },
+  {
+    "slug": "iwconfig",
+    "description": "`iwconfig` command parser"
+  },
+  {
+    "slug": "jar-manifest",
+    "description": "Java MANIFEST.MF file parser"
+  },
+  {
+    "slug": "jobs",
+    "description": "`jobs` command parser"
+  },
+  {
+    "slug": "jwt",
+    "description": "JWT string parser"
+  },
+  {
+    "slug": "kv",
+    "description": "Key/Value file and string parser"
+  },
+  {
+    "slug": "kv-dup",
+    "description": "Key/Value with duplicate key file and string parser"
+  },
+  {
+    "slug": "last",
+    "description": "`last` and `lastb` command parser"
+  },
+  {
+    "slug": "ls",
+    "description": "`ls` command parser"
+  },
+  {
+    "slug": "ls-s",
+    "description": "`ls` command streaming parser"
+  },
+  {
+    "slug": "lsattr",
+    "description": "`lsattr` command parser"
+  },
+  {
+    "slug": "lsb-release",
+    "description": "`lsb_release` command parser"
+  },
+  {
+    "slug": "lsblk",
+    "description": "`lsblk` command parser"
+  },
+  {
+    "slug": "lsmod",
+    "description": "`lsmod` command parser"
+  },
+  {
+    "slug": "lsof",
+    "description": "`lsof` command parser"
+  },
+  {
+    "slug": "lspci",
+    "description": "`lspci -mmv` command parser"
+  },
+  {
+    "slug": "lsusb",
+    "description": "`lsusb` command parser"
+  },
+  {
+    "slug": "m3u",
+    "description": "M3U and M3U8 file parser"
+  },
+  {
+    "slug": "mdadm",
+    "description": "`mdadm` command parser"
+  },
+  {
+    "slug": "mount",
+    "description": "`mount` command parser"
+  },
+  {
+    "slug": "mpstat",
+    "description": "`mpstat` command parser"
+  },
+  {
+    "slug": "mpstat-s",
+    "description": "`mpstat` command streaming parser"
+  },
+  {
+    "slug": "needrestart",
+    "description": "`needrestart -b` command parser"
+  },
+  {
+    "slug": "net-localgroup",
+    "description": "`net localgroup` command parser"
+  },
+  {
+    "slug": "net-user",
+    "description": "`net user` command parser"
+  },
+  {
+    "slug": "netstat",
+    "description": "`netstat` command parser"
+  },
+  {
+    "slug": "nmcli",
+    "description": "`nmcli` command parser"
+  },
+  {
+    "slug": "nsd-control",
+    "description": "`nsd-control` command parser"
+  },
+  {
+    "slug": "ntpq",
+    "description": "`ntpq -p` command parser"
+  },
+  {
+    "slug": "openvpn",
+    "description": "openvpn-status.log file parser"
+  },
+  {
+    "slug": "os-prober",
+    "description": "`os-prober` command parser"
+  },
+  {
+    "slug": "os-release",
+    "description": "`/etc/os-release` file parser"
+  },
+  {
+    "slug": "pacman",
+    "description": "`pacman` command parser"
+  },
+  {
+    "slug": "passwd",
+    "description": "`/etc/passwd` file parser"
+  },
+  {
+    "slug": "path",
+    "description": "POSIX path string parser"
+  },
+  {
+    "slug": "path-list",
+    "description": "POSIX path list string parser"
+  },
+  {
+    "slug": "pci-ids",
+    "description": "`pci.ids` file parser"
+  },
+  {
+    "slug": "pgpass",
+    "description": "PostgreSQL password file parser"
+  },
+  {
+    "slug": "pidstat",
+    "description": "`pidstat -H` command parser"
+  },
+  {
+    "slug": "pidstat-s",
+    "description": "`pidstat -H` command streaming parser"
+  },
+  {
+    "slug": "ping",
+    "description": "`ping` and `ping6` command parser"
+  },
+  {
+    "slug": "ping-s",
+    "description": "`ping` and `ping6` command streaming parser"
+  },
+  {
+    "slug": "pip-list",
+    "description": "`pip list` command parser"
+  },
+  {
+    "slug": "pip-show",
+    "description": "`pip show` command parser"
+  },
+  {
+    "slug": "pkg-index-apk",
+    "description": "Alpine Linux Package Index file parser"
+  },
+  {
+    "slug": "pkg-index-deb",
+    "description": "Debian Package Index file parser"
+  },
+  {
+    "slug": "plist",
+    "description": "PLIST file parser"
+  },
+  {
+    "slug": "postconf",
+    "description": "`postconf -M` command parser"
+  },
+  {
+    "slug": "proc",
+    "description": "`/proc/` file parser"
+  },
+  {
+    "slug": "ps",
+    "description": "`ps` command parser"
+  },
+  {
+    "slug": "resolve-conf",
+    "description": "`/etc/resolve.conf` file parser"
+  },
+  {
+    "slug": "route",
+    "description": "`route` command parser"
+  },
+  {
+    "slug": "route-print",
+    "description": "`route print` command parser"
+  },
+  {
+    "slug": "rpm-qi",
+    "description": "`rpm -qi` command parser"
+  },
+  {
+    "slug": "rsync",
+    "description": "`rsync` command parser"
+  },
+  {
+    "slug": "rsync-s",
+    "description": "`rsync` command streaming parser"
+  },
+  {
+    "slug": "semver",
+    "description": "Semantic Version string parser"
+  },
+  {
+    "slug": "sfdisk",
+    "description": "`sfdisk` command parser"
+  },
+  {
+    "slug": "shadow",
+    "description": "`/etc/shadow` file parser"
+  },
+  {
+    "slug": "srt",
+    "description": "SRT file parser"
+  },
+  {
+    "slug": "ss",
+    "description": "`ss` command parser"
+  },
+  {
+    "slug": "ssh-conf",
+    "description": "`ssh` config file and `ssh -G` command parser"
+  },
+  {
+    "slug": "sshd-conf",
+    "description": "`sshd` config file and `sshd -T` command parser"
+  },
+  {
+    "slug": "stat",
+    "description": "`stat` command parser"
+  },
+  {
+    "slug": "stat-s",
+    "description": "`stat` command streaming parser"
+  },
+  {
+    "slug": "swapon",
+    "description": "`swapon` command parser"
+  },
+  {
+    "slug": "sysctl",
+    "description": "`sysctl` command parser"
+  },
+  {
+    "slug": "syslog",
+    "description": "Syslog RFC 5424 string parser"
+  },
+  {
+    "slug": "syslog-bsd",
+    "description": "Syslog RFC 3164 string parser"
+  },
+  {
+    "slug": "syslog-bsd-s",
+    "description": "Syslog RFC 3164 string streaming parser"
+  },
+  {
+    "slug": "syslog-s",
+    "description": "Syslog RFC 5424 string streaming parser"
+  },
+  {
+    "slug": "systemctl",
+    "description": "`systemctl` command parser"
+  },
+  {
+    "slug": "systemctl-lj",
+    "description": "`systemctl list-jobs` command parser"
+  },
+  {
+    "slug": "systemctl-ls",
+    "description": "`systemctl list-sockets` command parser"
+  },
+  {
+    "slug": "systemctl-luf",
+    "description": "`systemctl list-unit-files` command parser"
+  },
+  {
+    "slug": "systeminfo",
+    "description": "`systeminfo` command parser"
+  },
+  {
+    "slug": "time",
+    "description": "`/usr/bin/time` command parser"
+  },
+  {
+    "slug": "timedatectl",
+    "description": "`timedatectl status` command parser"
+  },
+  {
+    "slug": "timestamp",
+    "description": "Unix Epoch Timestamp string parser"
+  },
+  {
+    "slug": "toml",
+    "description": "TOML file parser"
+  },
+  {
+    "slug": "top",
+    "description": "`top -b` command parser"
+  },
+  {
+    "slug": "top-s",
+    "description": "`top -b` command streaming parser"
+  },
+  {
+    "slug": "tracepath",
+    "description": "`tracepath` and `tracepath6` command parser"
+  },
+  {
+    "slug": "traceroute",
+    "description": "`traceroute` and `traceroute6` command parser"
+  },
+  {
+    "slug": "traceroute-s",
+    "description": "`traceroute` and `traceroute6` command streaming parser"
+  },
+  {
+    "slug": "tune2fs",
+    "description": "`tune2fs -l` command parser"
+  },
+  {
+    "slug": "udevadm",
+    "description": "`udevadm info` command parser"
+  },
+  {
+    "slug": "ufw",
+    "description": "`ufw status` command parser"
+  },
+  {
+    "slug": "ufw-appinfo",
+    "description": "`ufw app info [application]` command parser"
+  },
+  {
+    "slug": "uname",
+    "description": "`uname -a` command parser"
+  },
+  {
+    "slug": "update-alt-gs",
+    "description": "`update-alternatives --get-selections` command parser"
+  },
+  {
+    "slug": "update-alt-q",
+    "description": "`update-alternatives --query` command parser"
+  },
+  {
+    "slug": "upower",
+    "description": "`upower` command parser"
+  },
+  {
+    "slug": "uptime",
+    "description": "`uptime` command parser"
+  },
+  {
+    "slug": "url",
+    "description": "URL string parser"
+  },
+  {
+    "slug": "ver",
+    "description": "Version string parser"
+  },
+  {
+    "slug": "veracrypt",
+    "description": "`veracrypt` command parser"
+  },
+  {
+    "slug": "vmstat",
+    "description": "`vmstat` command parser"
+  },
+  {
+    "slug": "vmstat-s",
+    "description": "`vmstat` command streaming parser"
+  },
+  {
+    "slug": "w",
+    "description": "`w` command parser"
+  },
+  {
+    "slug": "wc",
+    "description": "`wc` command parser"
+  },
+  {
+    "slug": "wg-show",
+    "description": "`wg show` command parser"
+  },
+  {
+    "slug": "who",
+    "description": "`who` command parser"
+  },
+  {
+    "slug": "x509-cert",
+    "description": "X.509 PEM and DER certificate file parser"
+  },
+  {
+    "slug": "x509-crl",
+    "description": "X.509 PEM and DER certificate revocation list file parser"
+  },
+  {
+    "slug": "x509-csr",
+    "description": "X.509 PEM and DER certificate request file parser"
+  },
+  {
+    "slug": "xml",
+    "description": "XML file parser"
+  },
+  {
+    "slug": "xrandr",
+    "description": "`xrandr` command parser"
+  },
+  {
+    "slug": "yaml",
+    "description": "YAML file parser"
+  },
+  {
+    "slug": "zipinfo",
+    "description": "`zipinfo` command parser"
+  },
+  {
+    "slug": "zpool-iostat",
+    "description": "`zpool iostat` command parser"
+  },
+  {
+    "slug": "zpool-status",
+    "description": "`zpool status` command parser"
+  }
+]

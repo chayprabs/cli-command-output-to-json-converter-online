@@ -1,0 +1,51 @@
+{
+  "name": "parsedeck",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Paste terminal output, choose a format, and turn raw text into structured JSON for automation and debugging.",
+  "author": "CLI Parse Web",
+  "license": "MIT",
+  "keywords": [
+    "terminal",
+    "json",
+    "automation",
+    "devops",
+    "ops",
+    "cli",
+    "parsing"
+  ],
+  "engines": {
+    "node": ">=18.18.0"
+  },
+  "scripts": {
+    "dev": "node server.mjs --dev",
+    "build": "next build",
+    "start": "node server.mjs",
+    "lint": "next lint",
+    "typecheck": "node -e \"require('fs').mkdirSync('.next/types',{recursive:true})\" && next typegen && tsc --noEmit",
+    "test:api": "node scripts/api-audit.mjs",
+    "test:runtime": "node scripts/runtime-audit.mjs",
+    "test:audit": "npm run test:api && npm run test:runtime",
+    "test:integration": "node tests/integration.mjs",
+    "verify:security": "node scripts/security-verify.mjs",
+    "check:parser-manifest": "node scripts/check-parser-manifest.mjs",
+    "sync:parser-manifest": "node scripts/sync-parser-manifest.mjs",
+    "ci:local": "node scripts/local-ci.mjs"
+  },
+  "dependencies": {
+    "next": "15.5.14",
+    "react": "19.2.0",
+    "react-dom": "19.2.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "4.2.2",
+    "@types/node": "24.6.1",
+    "@types/react": "19.2.2",
+    "@types/react-dom": "19.2.2",
+    "eslint": "9.38.0",
+    "eslint-config-next": "15.5.14",
+    "postcss": "8.5.8",
+    "tailwindcss": "4.2.2",
+    "typescript": "5.9.3"
+  }
+}
