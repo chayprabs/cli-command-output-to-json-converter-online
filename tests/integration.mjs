@@ -280,6 +280,70 @@ const tests = [
       };
     },
   },
+  {
+    id: "P13",
+    expected: "GET /credits returns 200",
+    run: async () => {
+      const { response } = await request("/credits");
+      return {
+        pass: response.status === 200,
+        actual: summarize({ status: response.status }),
+      };
+    },
+  },
+  {
+    id: "P14",
+    expected: "OPTIONS /api/parse returns PRD §15 security headers",
+    run: async () => {
+      const { response } = await request("/api/parse", {
+        method: "OPTIONS",
+        headers: buildHeaders("203.0.113.90"),
+      });
+      const cacheControl = response.headers.get("cache-control") ?? "";
+
+      return {
+        pass:
+          response.status === 204 &&
+          cacheControl.includes("no-store") &&
+          response.headers.get("x-content-type-options") === "nosniff" &&
+          response.headers.get("x-frame-options") === "DENY" &&
+          response.headers.get("referrer-policy") ===
+            "strict-origin-when-cross-origin" &&
+          response.headers.get("x-xss-protection") === "0" &&
+          !response.headers.has("x-powered-by"),
+        actual: summarize({
+          status: response.status,
+          cacheControl,
+          xFrameOptions: response.headers.get("x-frame-options"),
+          referrerPolicy: response.headers.get("referrer-policy"),
+        }),
+      };
+    },
+  },
+  {
+    id: "P15",
+    expected: "POST /api/parse with input over 512 KB returns 400 with PRD message",
+    run: async () => {
+      const { response, body } = await request("/api/parse", {
+        method: "POST",
+        headers: buildHeaders("198.51.100.21", {
+          "Content-Type": "application/json",
+        }),
+        body: JSON.stringify({
+          parser: "ls",
+          input: "x".repeat(530_000),
+        }),
+      });
+
+      return {
+        pass:
+          response.status === 400 &&
+          body?.success === false &&
+          body?.error === "Input exceeds the 512 KB limit.",
+        actual: summarize({ status: response.status, body }),
+      };
+    },
+  },
 ];
 
 const failures = [];
