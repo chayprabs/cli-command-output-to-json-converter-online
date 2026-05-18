@@ -27,7 +27,9 @@
     "test:runtime": "node scripts/runtime-audit.mjs",
     "test:audit": "npm run test:api && npm run test:runtime",
     "test:integration": "node tests/integration.mjs",
+    "test:e2e": "playwright test",
     "verify:security": "node scripts/security-verify.mjs",
+    "license:check": "license-checker --production --failOn \"GPL;AGPL;LGPL\" --excludePackages \"@img/sharp-win32-x64;@img/sharp-linux-x64;@img/sharp-linux-arm64;@img/sharp-linuxmusl-x64;@img/sharp-darwin-x64;@img/sharp-darwin-arm64;@img/sharp-libvips-linux-x64;@img/sharp-libvips-linuxmusl-x64;@img/sharp-libvips-darwin-x64;@img/colour\"",
     "check:parser-manifest": "node scripts/check-parser-manifest.mjs",
     "sync:parser-manifest": "node scripts/sync-parser-manifest.mjs",
     "ci:local": "node scripts/local-ci.mjs"
@@ -39,12 +41,14 @@
     "react-dom": "19.2.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.51.0",
     "@tailwindcss/postcss": "4.2.2",
     "@types/node": "24.6.1",
     "@types/react": "19.2.2",
     "@types/react-dom": "19.2.2",
     "eslint": "9.38.0",
     "eslint-config-next": "^15.5.18",
+    "license-checker": "^25.0.0",
     "postcss": "8.5.8",
     "tailwindcss": "4.2.2",
     "typescript": "5.9.3"

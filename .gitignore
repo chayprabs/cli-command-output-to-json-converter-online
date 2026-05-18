@@ -1,5 +1,11 @@
 .next
 node_modules
+.env
+.env.local
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
 npm-debug.log*
 .tmp-runtime-audit
 *.log

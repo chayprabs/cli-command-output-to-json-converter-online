@@ -18,7 +18,7 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
-      - run: npx license-checker --production --failOn "GPL;AGPL;LGPL" --excludePackages "@img/sharp-win32-x64;@img/sharp-linux-x64;@img/sharp-linux-arm64;@img/sharp-linuxmusl-x64;@img/sharp-darwin-x64;@img/sharp-darwin-arm64;@img/sharp-libvips-linux-x64;@img/sharp-libvips-linuxmusl-x64;@img/sharp-libvips-darwin-x64;@img/colour"
+      - run: npm run license:check
       - run: npm audit --audit-level=high
       - run: npx next typegen
       - run: npx tsc --noEmit
@@ -74,6 +74,10 @@ jobs:
           exit 1
         shell: bash
       - run: node tests/integration.mjs
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+        env:
+          BASE_URL: http://127.0.0.1:3000
       - if: always()
         run: |
           if [ -f server.pid ]; then
