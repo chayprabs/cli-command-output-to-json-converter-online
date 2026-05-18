@@ -15,7 +15,7 @@ ENV NODE_ENV=production
 ENV HOST=0.0.0.0
 RUN apt-get update \
   && apt-get install -y --no-install-recommends python3 python3-pip \
-  && python3 -m pip install --no-cache-dir jc==1.25.6 \
+  && python3 -m pip install --no-cache-dir --break-system-packages jc==1.25.6 \
   && python3 -m jc --version \
   && rm -rf /var/lib/apt/lists/*
 COPY --from=builder /app/.next ./.next
