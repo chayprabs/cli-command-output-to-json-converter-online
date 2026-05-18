@@ -13,6 +13,7 @@ export type ParseMeta = {
   durationMs: number;
   inputBytes: number;
   outputBytes: number;
+  parsedAt: string;
 };
 
 export type ApiErrorCode =
@@ -33,6 +34,7 @@ export type ApiErrorResponse = {
   success: false;
   error: string;
   code: ApiErrorCode;
+  requestId?: string;
 };
 
 export type ParseSuccessResponse = {

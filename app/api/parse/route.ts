@@ -1,6 +1,8 @@
+import { randomBytes } from "node:crypto";
 import type { ParseApiResponse, ParseRequestBody } from "@/lib/api";
+import { getCatalogSnapshot } from "@/lib/catalog-cache";
 import {
-  MAX_PARSE_INPUT_CHARS,
+  MAX_PARSE_INPUT_BYTES,
   MAX_PARSE_REQUEST_BYTES,
 } from "@/lib/constants";
 import { normalizeAppError, AppError } from "@/lib/errors";
@@ -13,9 +15,14 @@ import {
   readJsonRequest,
 } from "@/lib/http";
 import { extractClientIp } from "@/lib/ip";
-import { hashIp, logParseRequest, logRateLimitHit, logSubprocessFailure } from "@/lib/logging";
+import {
+  hashIp,
+  logParseRequest,
+  logRateLimitHit,
+  logSubprocessFailure,
+} from "@/lib/logging";
 import { consumeParseRateLimit, peekParseRateLimit } from "@/lib/rate-limit";
-import { hasParserSlug, PARSER_SLUG_PATTERN } from "@/lib/parsers";
+import { PARSER_SLUG_PATTERN } from "@/lib/parsers";
 import { parseWithFormat } from "@/lib/parser-runtime";
 
 export const runtime = "nodejs";
@@ -30,11 +37,7 @@ function readInputSize(input: string) {
 
 function validateParseRequestPayload(body: unknown): ParseRequestBody {
   if (!body || typeof body !== "object" || Array.isArray(body)) {
-    throw new AppError(
-      400,
-      "bad_request",
-      "Request body must be a JSON object with parser and input fields.",
-    );
+    throw new AppError(400, "bad_request", "Request body must be valid JSON.");
   }
 
   const payload = body as ParseRequestPayload;
@@ -44,11 +47,7 @@ function validateParseRequestPayload(body: unknown): ParseRequestBody {
   );
 
   if (unknownFields.length > 0) {
-    throw new AppError(
-      400,
-      "bad_request",
-      `Unknown field "${unknownFields[0]}". Only parser and input are allowed.`,
-    );
+    throw new AppError(400, "bad_request", "Request body must be valid JSON.");
   }
 
   if (!("parser" in payload)) {
@@ -56,14 +55,16 @@ function validateParseRequestPayload(body: unknown): ParseRequestBody {
   }
 
   if (typeof payload.parser !== "string") {
-    throw new AppError(400, "bad_request", "parser must be a string.");
+    throw new AppError(400, "bad_request", "parser is required.");
   }
 
-  if (!PARSER_SLUG_PATTERN.test(payload.parser)) {
+  const parser = payload.parser;
+
+  if (!PARSER_SLUG_PATTERN.test(parser)) {
     throw new AppError(
       400,
       "bad_request",
-      "parser must match /^[a-z][a-z0-9_-]{0,30}$/.",
+      "parser contains invalid characters.",
     );
   }
 
@@ -72,28 +73,22 @@ function validateParseRequestPayload(body: unknown): ParseRequestBody {
   }
 
   if (typeof payload.input !== "string") {
-    throw new AppError(400, "bad_request", "input must be a string.");
+    throw new AppError(400, "bad_request", "input is required.");
   }
 
-  if (payload.input.length < 1) {
-    throw new AppError(
-      400,
-      "bad_request",
-      "input must be at least 1 character long.",
-    );
+  const input = payload.input.trim();
+
+  if (input.length === 0) {
+    throw new AppError(400, "bad_request", "input must not be empty.");
   }
 
-  if (payload.input.length > MAX_PARSE_INPUT_CHARS) {
-    throw new AppError(
-      400,
-      "bad_request",
-      `input must not exceed ${MAX_PARSE_INPUT_CHARS.toLocaleString("en-US")} characters.`,
-    );
+  if (readInputSize(input) > MAX_PARSE_INPUT_BYTES) {
+    throw new AppError(400, "bad_request", "Input exceeds the 512 KB limit.");
   }
 
   return {
-    parser: payload.parser,
-    input: payload.input,
+    parser,
+    input,
   };
 }
 
@@ -135,6 +130,7 @@ function logAuxiliaryParseRequest(
 ) {
   logParseRequest({
     timestamp: new Date().toISOString(),
+    requestId: null,
     ipHash: hashIp(extractClientIp(request)),
     parser: null,
     inputBytes: 0,
@@ -145,6 +141,7 @@ function logAuxiliaryParseRequest(
 }
 
 export async function POST(request: Request) {
+  const requestId = randomBytes(8).toString("hex");
   const startedAt = Date.now();
   const clientIp = extractClientIp(request);
   const ipHash = hashIp(clientIp);
@@ -155,11 +152,9 @@ export async function POST(request: Request) {
   let headers = peekParseRateLimit(clientIp);
 
   try {
-    headers = consumeParseRateLimit(clientIp).headers;
-
     const body = await readJsonRequest<unknown>(request, {
       maxBytes: MAX_PARSE_REQUEST_BYTES,
-      sizeExceededMessage: "Request body exceeds the 100 KB limit.",
+      sizeExceededMessage: "Request body exceeds the 600 KB limit.",
     });
 
     if (
@@ -184,36 +179,53 @@ export async function POST(request: Request) {
     selectedParser = payload.parser;
     inputBytes = readInputSize(payload.input);
 
-    if (!hasParserSlug(payload.parser)) {
+    headers = consumeParseRateLimit(clientIp, inputBytes).headers;
+
+    const catalog = await getCatalogSnapshot();
+
+    if (!catalog.available) {
+      throw new AppError(
+        503,
+        "runtime_unavailable",
+        "Parser runtime is not available.",
+      );
+    }
+
+    if (!catalog.allowlist.has(payload.parser)) {
       throw new AppError(
         400,
         "unknown_parser",
-        "parser is not available on this server.",
+        "Unknown parser. Choose a parser from the catalog.",
       );
     }
 
     const parsed = await parseWithFormat<unknown>(payload.parser, payload.input);
     subprocessExitCode = parsed.exitCode;
+    const parsedAt = new Date().toISOString();
 
-    const response = jsonResponse<ParseApiResponse>({
-      success: true,
-      data: parsed.data,
-      meta: {
-        parser: payload.parser,
-        durationMs: Date.now() - startedAt,
-        inputBytes,
-        outputBytes: parsed.jsonBytes,
+    const response = jsonResponse<ParseApiResponse>(
+      {
+        success: true,
+        data: parsed.data,
+        meta: {
+          parser: payload.parser,
+          durationMs: Date.now() - startedAt,
+          inputBytes,
+          outputBytes: parsed.jsonBytes,
+          parsedAt,
+        },
       },
-    }, {
-      headers,
-    });
+      {
+        headers,
+      },
+    );
     responseStatus = response.status;
     return response;
   } catch (error) {
     const appError = normalizeAppError(error, {
       status: 500,
       code: "internal_error",
-      message: "Unable to process the parse request.",
+      message: "An unexpected error occurred.",
     });
     responseStatus = appError.status;
     subprocessExitCode = appError.details?.exitCode ?? null;
@@ -222,10 +234,11 @@ export async function POST(request: Request) {
 
     return errorResponse(appError.status, appError.code, appError.message, {
       headers: mergeHeaders(headers, appError.headers),
-    });
+    }, requestId);
   } finally {
     logParseRequest({
       timestamp: new Date().toISOString(),
+      requestId,
       ipHash,
       parser: selectedParser,
       inputBytes,

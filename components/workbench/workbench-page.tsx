@@ -9,6 +9,7 @@ import {
   useState,
   useTransition,
 } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import type {
   ApiErrorCode,
@@ -28,13 +29,17 @@ import {
   safeReadStorage,
   safeWriteStorage,
   TimeoutError,
+  truncateUtf8StringByBytes,
   type ResultView,
 } from "@/lib/client";
 import {
+  AUTO_PARSE_DEBOUNCE_MS,
   CLIENT_REQUEST_TIMEOUT_MS,
-  MAX_PARSE_INPUT_CHARS,
+  INPUT_WARNING_BYTES,
+  MAX_PARSE_INPUT_BYTES,
   MAX_VISIBLE_PARSER_RESULTS,
   PARSER_STORAGE_KEY,
+  TRANSIENT_UI_FEEDBACK_MS,
 } from "@/lib/constants";
 import {
   copyToClipboard,
@@ -48,7 +53,8 @@ import { getParserExample } from "@/lib/examples";
 import {
   compressToBase64,
   decodeAppState,
-  encodeAppState,
+  decodeHashStateFromLocationHash,
+  encodeAppStateForUrl,
   isValidParserSlug,
 } from "@/lib/url-state";
 import { ParserSelector } from "./parser-selector";
@@ -65,7 +71,6 @@ import { cx } from "./workbench-styles";
 
 const GITHUB_URL: string | null = null;
 const LARGE_CSV_ROW_THRESHOLD = 2_000;
-const TRANSIENT_ACTION_TIMEOUT_MS = 1_000;
 
 type PendingSharedState = {
   parser: string;
@@ -196,80 +201,145 @@ function createEmptyState(options: {
   };
 }
 
+function withRequestId(
+  view: ResultErrorView,
+  requestId?: string,
+): ResultErrorView {
+  if (!requestId) {
+    return view;
+  }
+
+  return { ...view, requestId };
+}
+
 function createParseErrorView(options: {
   code?: ApiErrorCode | "timeout" | "network" | "unexpected";
   parser: string;
+  requestId?: string;
+  apiMessage?: string;
 }): ResultErrorView {
   const parserLabel = options.parser || "selected parser";
+  const apiMessage = options.apiMessage;
 
   switch (options.code) {
+    case "rate_limited":
+      return withRequestId(
+        {
+          label: "Rate limited",
+          title: "Please wait",
+          message:
+            apiMessage ??
+            "Too many requests. Try again in a few seconds.",
+          hint: "Fair-use limits keep ParseDeck responsive for everyone.",
+        },
+        options.requestId,
+      );
     case "bad_request":
-      return {
-        label: "Input needs attention",
-        title: "The sample is incomplete",
-        message:
-          "Choose a parser and provide raw terminal output before sending the request.",
-        hint: "Select the matching parser, paste the full command output, and try again.",
-      };
+      return withRequestId(
+        {
+          label: "Input needs attention",
+          title: "Check your request",
+          message:
+            apiMessage ??
+            "Choose a parser and provide raw terminal output before sending the request.",
+          hint: "Fix the issue described in the message above, then try again.",
+        },
+        options.requestId,
+      );
     case "payload_too_large":
-      return {
-        label: "Workspace limit",
-        title: "This sample is too large to parse here",
-        message: `ParseDeck accepts up to ${MAX_PARSE_INPUT_CHARS.toLocaleString(
-          "en-US",
-        )} characters of terminal output per request.`,
-        hint: "Trim the sample down to the lines you need most and rerun the parse.",
-      };
+      return withRequestId(
+        {
+          label: "Workspace limit",
+          title: "This sample is too large to parse here",
+          message:
+            apiMessage ??
+            `Input must be at most ${(MAX_PARSE_INPUT_BYTES / 1024).toLocaleString("en-US")} KB.`,
+          hint: "Trim the sample to the lines you need, or download a smaller excerpt from your terminal.",
+        },
+        options.requestId,
+      );
     case "unknown_parser":
-      return {
-        label: "Parser unavailable",
-        title: "That parser is not available on this server",
-        message:
-          "The current catalog no longer includes the selected parser or the runtime changed underneath the app.",
-        hint: "Refresh the parser catalog or choose a different parser and submit again.",
-      };
+      return withRequestId(
+        {
+          label: "Parser unavailable",
+          title: "That parser is not available on this server",
+          message:
+            apiMessage ??
+            "Unknown parser. Choose a parser from the catalog.",
+          hint: "Refresh the catalog or pick another format from the list.",
+        },
+        options.requestId,
+      );
     case "runtime_unavailable":
-      return {
-        label: "Runtime unavailable",
-        title: "The parsing runtime is not ready",
-        message:
-          "The server cannot reach the jc runtime right now, so it cannot transform the pasted output.",
-        hint: "Verify the runtime installation on the server, then retry the parse.",
-      };
+      return withRequestId(
+        {
+          label: "Runtime unavailable",
+          title: "The parsing runtime is not ready",
+          message:
+            apiMessage ??
+            "Parser runtime is not available.",
+          hint: "Install jc on the server (pip install jc) and restart the application.",
+        },
+        options.requestId,
+      );
     case "execution_timeout":
     case "timeout":
-      return {
-        label: "Request timed out",
-        title: "Parsing took too long",
-        message:
-          "The parser did not return in time for this sample, which usually means the sample is too large or does not match the selected parser cleanly.",
-        hint: "Try a shorter sample, confirm the parser selection, and submit once more.",
-      };
+    case "request_timeout":
+      return withRequestId(
+        {
+          label: "Request timed out",
+          title: "Parsing took too long",
+          message:
+            apiMessage ?? "Parsing timed out. Try a smaller input.",
+          hint: "Try a shorter sample or confirm the parser matches your command output.",
+        },
+        options.requestId,
+      );
     case "invalid_json":
     case "parse_failed":
-      return {
-        label: "Parse failed",
-        title: `Couldn't parse this ${parserLabel} sample`,
-        message:
-          "The pasted text does not look like valid output for the selected parser, so ParseDeck could not produce a structured result.",
-        hint: "Paste the raw command output without edits and double-check that the parser matches the command you ran.",
-      };
+      return withRequestId(
+        {
+          label: "Parse failed",
+          title: `Could not parse this ${parserLabel} sample`,
+          message:
+            apiMessage ?? "Could not parse the input for this format.",
+          hint: "Paste the raw command output without edits and verify the parser matches.",
+        },
+        options.requestId,
+      );
+    case "internal_error":
+      return withRequestId(
+        {
+          label: "Server error",
+          title: "Something went wrong",
+          message: apiMessage ?? "An unexpected error occurred.",
+          hint: "Try again in a moment. If it persists, share the request ID with support.",
+        },
+        options.requestId,
+      );
     case "network":
-      return {
-        label: "Connection issue",
-        title: "The parser service could not be reached",
-        message:
-          "The browser could not complete the request to the local parse endpoint.",
-        hint: "Make sure the app is still running, then retry the request.",
-      };
+      return withRequestId(
+        {
+          label: "Connection issue",
+          title: "The parser service could not be reached",
+          message:
+            "The browser could not complete the request to the parse endpoint.",
+          hint: "Make sure the app is still running, then retry the request.",
+        },
+        options.requestId,
+      );
     default:
-      return {
-        label: "Request failed",
-        title: "ParseDeck couldn't build a result",
-        message:
-          "Something interrupted the parse before a usable JSON response came back.",
-        hint: "Retry the parse with a fresh sample or switch to another parser to isolate the issue.",
-      };
+      return withRequestId(
+        {
+          label: "Request failed",
+          title: "ParseDeck couldn't build a result",
+          message:
+            apiMessage ??
+            "Something interrupted the parse before a usable JSON response came back.",
+          hint: "Retry with a fresh sample or switch parsers to isolate the issue.",
+        },
+        options.requestId,
+      );
   }
 }
 
@@ -310,6 +380,7 @@ export function WorkbenchPage() {
   const [isSharedViewVisible, setIsSharedViewVisible] = useState(false);
   const [sharedParserMessage, setSharedParserMessage] = useState("");
   const [sharedInputWarning, setSharedInputWarning] = useState("");
+  const [shareEncodeError, setShareEncodeError] = useState("");
 
   const parseAbortRef = useRef<AbortController | null>(null);
   const copyTimerRef = useRef<number | null>(null);
@@ -320,6 +391,10 @@ export function WorkbenchPage() {
   const paletteInputRef = useRef<HTMLInputElement | null>(null);
   const clipboardFallbackRef = useRef<HTMLTextAreaElement | null>(null);
   const initialUrlProcessedRef = useRef(false);
+  const autoParseTimerRef = useRef<number | null>(null);
+  const submitParseRef = useRef<
+    ((options?: { parser?: string; input?: string }) => Promise<void>) | null
+  >(null);
 
   const deferredPaletteQuery = useDeferredValue(paletteQuery);
   const filteredParsers = filterParsers(parsers, deferredPaletteQuery);
@@ -330,7 +405,18 @@ export function WorkbenchPage() {
       return;
     }
 
-    initialUrlProcessedRef.current = true;
+    if (typeof window !== "undefined") {
+      const fromHash = decodeHashStateFromLocationHash(window.location.hash);
+
+      if (fromHash) {
+        initialUrlProcessedRef.current = true;
+        setHasSharedQuery(true);
+        setIsResolvingSharedState(true);
+        setPendingSharedState(fromHash);
+        setIsResolvingSharedState(false);
+        return;
+      }
+    }
 
     const parserParam = searchParams.get("parser");
     const inputParam = searchParams.get("input");
@@ -338,6 +424,8 @@ export function WorkbenchPage() {
     if (!parserParam && !inputParam) {
       return;
     }
+
+    initialUrlProcessedRef.current = true;
 
     let cancelled = false;
     setHasSharedQuery(true);
@@ -398,6 +486,14 @@ export function WorkbenchPage() {
           CLIENT_REQUEST_TIMEOUT_MS,
         );
 
+        if (response.status === 503) {
+          setParsersError(
+            "Parser runtime is not available. Install jc on the server (pip install jc), then restart the app.",
+          );
+          setParsers([]);
+          return;
+        }
+
         if (!response.ok || isApiErrorResponse(body) || !isParserSummaryList(body)) {
           throw new Error("Unable to load parser catalog.");
         }
@@ -434,7 +530,7 @@ export function WorkbenchPage() {
         }
 
         setParsersError(
-          "Unable to load the parser catalog. Retry to refresh the available formats.",
+          "Parser catalog could not be loaded. Refresh to try again.",
         );
       } finally {
         setParsersLoading(false);
@@ -453,8 +549,10 @@ export function WorkbenchPage() {
       return;
     }
 
-    const nextInput = pendingSharedState.input.slice(0, MAX_PARSE_INPUT_CHARS);
-    const inputWasTruncated = pendingSharedState.input.length > MAX_PARSE_INPUT_CHARS;
+    const rawInput = pendingSharedState.input;
+    const nextInput = truncateUtf8StringByBytes(rawInput, MAX_PARSE_INPUT_BYTES);
+    const inputWasTruncated =
+      readUtf8ByteLength(rawInput) > MAX_PARSE_INPUT_BYTES;
     const parserExists = parsers.some(
       (entry) => entry.slug === pendingSharedState.parser,
     );
@@ -471,9 +569,9 @@ export function WorkbenchPage() {
     );
     setSharedInputWarning(
       inputWasTruncated
-        ? `Shared input exceeded ${MAX_PARSE_INPUT_CHARS.toLocaleString(
+        ? `Shared input exceeded the ${(MAX_PARSE_INPUT_BYTES / 1024).toLocaleString(
             "en-US",
-          )} characters and was truncated to fit this workspace.`
+          )} KB limit and was truncated.`
         : "",
     );
 
@@ -490,16 +588,8 @@ export function WorkbenchPage() {
       parser: pendingSharedState.parser,
       input: nextInput,
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    clearResultState,
-    parsers,
-    parsersError,
-    parsersLoading,
-    pendingSharedState,
-    replaceUrlWithInputOnly,
-    submitParse,
-  ]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- shared-link hydration; helpers intentionally omitted
+  }, [pendingSharedState, parsers, parsersError, parsersLoading]);
 
   useEffect(() => {
     if (!parser) {
@@ -608,6 +698,10 @@ export function WorkbenchPage() {
       if (shareTimerRef.current) {
         window.clearTimeout(shareTimerRef.current);
       }
+
+      if (autoParseTimerRef.current !== null) {
+        window.clearTimeout(autoParseTimerRef.current);
+      }
     };
   }, []);
 
@@ -615,7 +709,9 @@ export function WorkbenchPage() {
     parsers.find((entry) => entry.slug === parser) ?? null;
   const inputBytes = readUtf8ByteLength(input);
   const inputCharacters = input.length;
-  const inputTooLarge = inputCharacters > MAX_PARSE_INPUT_CHARS;
+  const inputTooLarge = inputBytes > MAX_PARSE_INPUT_BYTES;
+  const largeInputWarning =
+    !inputTooLarge && inputBytes > INPUT_WARNING_BYTES;
   const hasInput = Boolean(input.trim());
   const isBusy = isSubmitting || isRenderingResult;
   const isSharedStateLoading =
@@ -628,7 +724,9 @@ export function WorkbenchPage() {
     Boolean(parser.trim()) &&
     hasInput &&
     !inputTooLarge;
-  const placeholder = getParserExample(parser);
+  const placeholder = parser
+    ? getParserExample(parser)
+    : "Paste your terminal output here…";
   const commandPreview = buildShellCommand(parser);
   const emptyState = createEmptyState({
     selectedParser,
@@ -645,20 +743,20 @@ export function WorkbenchPage() {
   const helperMessage = formError
     ? formError
     : inputTooLarge
-      ? `This sample is ${inputCharacters.toLocaleString(
-          "en-US",
-        )} characters. Requests are limited to ${MAX_PARSE_INPUT_CHARS.toLocaleString(
-          "en-US",
-        )} characters. Trim the sample before parsing.`
-      : selectedParser
-        ? `Placeholder text mirrors ${selectedParser.slug}. Workspace limit: ${MAX_PARSE_INPUT_CHARS.toLocaleString(
-            "en-US",
-          )} characters.`
-        : `Choose a parser to load a realistic example. Workspace limit: ${MAX_PARSE_INPUT_CHARS.toLocaleString(
-            "en-US",
-          )} characters.`;
+      ? "Input exceeds the 512 KB limit."
+      : largeInputWarning
+        ? "Large input — parsing may be slow"
+        : selectedParser
+          ? `Example placeholder for ${selectedParser.slug}. Workspace limit: 512 KB (UTF-8) per parse.`
+          : "Choose a parser to load an example. Workspace limit: 512 KB (UTF-8) per parse.";
 
-  const helperTone = formError ? "error" : inputTooLarge ? "warning" : "info";
+  const helperTone = formError
+    ? "error"
+    : inputTooLarge
+      ? "error"
+      : largeInputWarning
+        ? "warning"
+        : "info";
 
   function clearActionTimer(
     timerRef:
@@ -683,7 +781,7 @@ export function WorkbenchPage() {
 
     copyTimerRef.current = window.setTimeout(() => {
       setCopyState("idle");
-    }, TRANSIENT_ACTION_TIMEOUT_MS);
+    }, TRANSIENT_UI_FEEDBACK_MS);
   }
 
   function setJsonDownloadStateTemporarily(nextState: ResultDownloadState) {
@@ -696,7 +794,7 @@ export function WorkbenchPage() {
 
     jsonDownloadTimerRef.current = window.setTimeout(() => {
       setJsonDownloadState("idle");
-    }, TRANSIENT_ACTION_TIMEOUT_MS);
+    }, TRANSIENT_UI_FEEDBACK_MS);
   }
 
   function setCsvDownloadStateTemporarily(nextState: ResultDownloadState) {
@@ -709,7 +807,7 @@ export function WorkbenchPage() {
 
     csvDownloadTimerRef.current = window.setTimeout(() => {
       setCsvDownloadState("idle");
-    }, TRANSIENT_ACTION_TIMEOUT_MS);
+    }, TRANSIENT_UI_FEEDBACK_MS);
   }
 
   function setShareStateTemporarily(nextState: ShareCopyState, nextUrl = "") {
@@ -724,7 +822,7 @@ export function WorkbenchPage() {
     shareTimerRef.current = window.setTimeout(() => {
       setShareState("idle");
       setManualShareUrl("");
-    }, TRANSIENT_ACTION_TIMEOUT_MS);
+    }, TRANSIENT_UI_FEEDBACK_MS);
   }
 
   function resetExportStates() {
@@ -841,8 +939,27 @@ export function WorkbenchPage() {
 
   async function replaceUrlWithParserAndInput(nextParser: string, nextInput: string) {
     try {
-      const params = await encodeAppState(nextParser, nextInput);
-      router.replace(buildAppUrl(params));
+      const encoded = encodeAppStateForUrl(nextParser, nextInput);
+
+      if (encoded.tooLarge) {
+        setShareEncodeError("Input is too large to encode in a URL.");
+
+        if (typeof window !== "undefined") {
+          window.history.replaceState(null, "", window.location.pathname);
+        }
+
+        return;
+      }
+
+      setShareEncodeError("");
+
+      if (typeof window !== "undefined") {
+        window.history.replaceState(
+          null,
+          "",
+          `${window.location.pathname}#${encoded.hashFragment}`,
+        );
+      }
     } catch {
       // Ignore URL sync failures so parsing can still proceed.
     }
@@ -873,7 +990,8 @@ export function WorkbenchPage() {
 
     const nextParser = options?.parser ?? parser;
     const nextInput = options?.input ?? input;
-    const nextInputTooLarge = nextInput.length > MAX_PARSE_INPUT_CHARS;
+    const nextInputTooLarge =
+      readUtf8ByteLength(nextInput.trim()) > MAX_PARSE_INPUT_BYTES;
 
     if (parsersLoading) {
       setFormError("The parser catalog is still loading.");
@@ -886,21 +1004,17 @@ export function WorkbenchPage() {
     }
 
     if (!nextParser.trim()) {
-      setFormError("Choose a parser before submitting.");
+      setFormError("Select a format first.");
       return;
     }
 
     if (!nextInput.trim()) {
-      setFormError("Paste terminal output before submitting.");
+      setFormError("Paste some terminal output first.");
       return;
     }
 
     if (nextInputTooLarge) {
-      setFormError(
-        `Input is too large for this workspace. Keep it under ${MAX_PARSE_INPUT_CHARS.toLocaleString(
-          "en-US",
-        )} characters.`,
-      );
+      setFormError("Input exceeds the 512 KB limit.");
       return;
     }
 
@@ -910,6 +1024,7 @@ export function WorkbenchPage() {
     setIsSubmitting(true);
     setFormError("");
     setSharedParserMessage("");
+    setShareEncodeError("");
     setResultData(null);
     setResultError(null);
     setResultView(null);
@@ -938,10 +1053,14 @@ export function WorkbenchPage() {
       );
 
       if (!response.ok || isApiErrorResponse(body)) {
+        const apiBody = isApiErrorResponse(body) ? body : null;
+
         throw new ResultPanelError(
           createParseErrorView({
-            code: isApiErrorResponse(body) ? body.code : "unexpected",
+            code: apiBody?.code ?? "unexpected",
             parser: nextParser,
+            apiMessage: apiBody?.error,
+            requestId: apiBody?.requestId,
           }),
         );
       }
@@ -1002,6 +1121,44 @@ export function WorkbenchPage() {
     }
   }
 
+  submitParseRef.current = submitParse;
+
+  useEffect(() => {
+    if (autoParseTimerRef.current !== null) {
+      window.clearTimeout(autoParseTimerRef.current);
+      autoParseTimerRef.current = null;
+    }
+
+    if (
+      !parser.trim() ||
+      !input.trim() ||
+      inputTooLarge ||
+      parsersLoading ||
+      Boolean(parsersError) ||
+      isBusy
+    ) {
+      return undefined;
+    }
+
+    autoParseTimerRef.current = window.setTimeout(() => {
+      void submitParseRef.current?.();
+    }, AUTO_PARSE_DEBOUNCE_MS);
+
+    return () => {
+      if (autoParseTimerRef.current !== null) {
+        window.clearTimeout(autoParseTimerRef.current);
+        autoParseTimerRef.current = null;
+      }
+    };
+  }, [
+    input,
+    parser,
+    inputTooLarge,
+    parsersLoading,
+    parsersError,
+    isBusy,
+  ]);
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     await submitParse();
@@ -1022,6 +1179,7 @@ export function WorkbenchPage() {
     setIsSharedViewVisible(false);
     setSharedParserMessage("");
     setSharedInputWarning("");
+    setShareEncodeError("");
     clearResultState();
     closePalette();
     setIsSubmitting(false);
@@ -1148,6 +1306,11 @@ export function WorkbenchPage() {
       <div className="app-shell__content">
         <WorkbenchHeader githubUrl={GITHUB_URL} />
 
+        <p className="privacy-banner" role="note">
+          Your input is never stored. Parsing happens on the server and the
+          result is returned immediately. Nothing is saved.
+        </p>
+
         <div className="panel-grid">
           <section className="panel">
             <div className="panel__header">
@@ -1162,7 +1325,7 @@ export function WorkbenchPage() {
               </div>
 
               <div className="status-chip status-chip--accent">
-                {MAX_PARSE_INPUT_CHARS.toLocaleString("en-US")} chars max
+                512 KB max (UTF-8)
               </div>
             </div>
 
@@ -1238,6 +1401,15 @@ export function WorkbenchPage() {
                   </div>
                 ) : null}
 
+                {shareEncodeError ? (
+                  <div className="catalog-banner">
+                    <div className="catalog-banner__copy">
+                      <p className="catalog-banner__title">Share link</p>
+                      <p className="catalog-banner__message">{shareEncodeError}</p>
+                    </div>
+                  </div>
+                ) : null}
+
                 <div className="field-label-row">
                   <label className="field-label" htmlFor="raw-input">
                     Sample
@@ -1276,8 +1448,8 @@ export function WorkbenchPage() {
                       if (sharedInputWarning) {
                         setSharedInputWarning("");
                       }
-                      if (formError) {
-                        setFormError("");
+                      if (shareEncodeError) {
+                        setShareEncodeError("");
                       }
                     }}
                     onKeyDown={handleTextareaKeyDown}
@@ -1294,7 +1466,8 @@ export function WorkbenchPage() {
                         : "Parser-specific placeholder text appears here after you choose a parser."}
                     </span>
                     <span className="editor-shell__count">
-                      {inputCharacters.toLocaleString("en-US")} chars
+                      {inputCharacters.toLocaleString("en-US")} chars ·{" "}
+                      {formatBytes(inputBytes)}
                     </span>
                   </div>
                 </div>
@@ -1336,7 +1509,8 @@ export function WorkbenchPage() {
                       !formError &&
                       !isSharedViewVisible &&
                       !sharedParserMessage &&
-                      !sharedInputWarning
+                      !sharedInputWarning &&
+                      !shareEncodeError
                     }
                   >
                     Clear input & output
@@ -1448,8 +1622,18 @@ export function WorkbenchPage() {
         ) : null}
 
         <footer className="footer">
-          ParseDeck turns terminal output into structured JSON with <code>jc</code>{" "}
-          by Kelly Brazil, provided under the MIT License.
+          <p>
+            © 2026 Chaitanya Prabuddha — MIT License.{" "}
+            <Link href="/privacy">Privacy</Link>
+            {" · "}
+            <Link href="/terms">Terms</Link>
+            {" · "}
+            <Link href="/credits">Credits</Link>
+          </p>
+          <p>
+            Parsing runtime: <code>jc</code> by Kelly Brazil (MIT). Not affiliated
+            with the jc project.
+          </p>
         </footer>
       </div>
     </main>

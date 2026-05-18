@@ -1,146 +1,170 @@
 import {
-  PARSE_BURST_LIMIT,
-  PARSE_BURST_WINDOW_MS,
+  PARSE_RATE_LIMIT_INPUT_MB_PER_HOUR,
   PARSE_RATE_LIMIT_PER_MINUTE,
-  PARSE_RATE_LIMIT_WINDOW_MS,
   RATE_LIMIT_CLEANUP_INTERVAL_MS,
 } from "./constants";
 import { AppError } from "./errors";
 
-type RequestRecord = {
-  timestamp: number;
-};
-
-type RateLimitSnapshot = {
+export type RateLimitHeadersResult = {
   headers: Headers;
-  requestCount: number;
 };
 
-const requestStore = new Map<string, RequestRecord[]>();
+type RequestEntry = {
+  t: number;
+  bytes: number;
+};
 
-function filterActiveRecords(records: RequestRecord[], now: number) {
-  const minimumTimestamp = now - PARSE_RATE_LIMIT_WINDOW_MS;
-  return records.filter((record) => record.timestamp > minimumTimestamp);
+const MINUTE_MS = 60_000;
+const HOUR_MS = 60 * 60_000;
+const MAX_BYTES_PER_HOUR = PARSE_RATE_LIMIT_INPUT_MB_PER_HOUR * 1024 * 1024;
+const MAX_REQUESTS_PER_MINUTE = PARSE_RATE_LIMIT_PER_MINUTE;
+
+const store = new Map<string, RequestEntry[]>();
+
+function pruneEntries(entries: RequestEntry[], now: number) {
+  return entries.filter((e) => e.t > now - HOUR_MS);
 }
 
-function filterWindowRecords(
-  records: RequestRecord[],
-  now: number,
-  windowMs: number,
-) {
-  const minimumTimestamp = now - windowMs;
-  return records.filter((record) => record.timestamp > minimumTimestamp);
+function minuteWindowCount(entries: RequestEntry[], now: number) {
+  return entries.filter((e) => e.t > now - MINUTE_MS).length;
 }
 
-function toRetryAfterSeconds(windowStartTimestamp: number, windowMs: number) {
-  return Math.max(
-    1,
-    Math.ceil((windowStartTimestamp + windowMs - Date.now()) / 1_000),
-  );
+function hourByteTotal(entries: RequestEntry[]) {
+  return entries.reduce((sum, e) => sum + e.bytes, 0);
 }
 
-function buildRateLimitHeaders(records: RequestRecord[], now: number) {
-  const resetAtMs =
-    records[0]?.timestamp !== undefined
-      ? records[0].timestamp + PARSE_RATE_LIMIT_WINDOW_MS
-      : now + PARSE_RATE_LIMIT_WINDOW_MS;
-
+function buildRateLimitHeaders(entries: RequestEntry[], now: number) {
+  const minuteCount = minuteWindowCount(entries, now);
   return new Headers({
-    "X-RateLimit-Limit": String(PARSE_RATE_LIMIT_PER_MINUTE),
+    "X-RateLimit-Limit": String(MAX_REQUESTS_PER_MINUTE),
     "X-RateLimit-Remaining": String(
-      Math.max(0, PARSE_RATE_LIMIT_PER_MINUTE - records.length),
+      Math.max(0, MAX_REQUESTS_PER_MINUTE - minuteCount),
     ),
-    "X-RateLimit-Reset": String(Math.ceil(resetAtMs / 1_000)),
   });
 }
 
-function getSnapshot(ip: string, now: number): RateLimitSnapshot {
-  const currentRecords = filterActiveRecords(requestStore.get(ip) ?? [], now);
-
-  if (currentRecords.length > 0) {
-    requestStore.set(ip, currentRecords);
-  } else {
-    requestStore.delete(ip);
+function retryAfterSecondsFromOldestInMinute(
+  entries: RequestEntry[],
+  now: number,
+) {
+  const inWindow = entries.filter((e) => e.t > now - MINUTE_MS);
+  if (inWindow.length === 0) {
+    return 1;
   }
 
-  return {
-    headers: buildRateLimitHeaders(currentRecords, now),
-    requestCount: currentRecords.length,
-  };
+  const oldest = Math.min(...inWindow.map((e) => e.t));
+  return Math.max(1, Math.ceil((oldest + MINUTE_MS - now) / 1_000));
+}
+
+function retryAfterSecondsForByteRelief(
+  entries: RequestEntry[],
+  now: number,
+  incomingBytes: number,
+) {
+  const sorted = [...entries].sort((a, b) => a.t - b.t);
+  let excess = hourByteTotal(entries) + incomingBytes - MAX_BYTES_PER_HOUR;
+
+  if (excess <= 0) {
+    return 1;
+  }
+
+  for (const entry of sorted) {
+    excess -= entry.bytes;
+    if (excess <= 0) {
+      return Math.max(
+        1,
+        Math.ceil((entry.t + HOUR_MS - now) / 1_000),
+      );
+    }
+  }
+
+  return 3_600;
 }
 
 export function peekParseRateLimit(ip: string) {
-  return getSnapshot(ip, Date.now()).headers;
+  const now = Date.now();
+  const entries = pruneEntries(store.get(ip) ?? [], now);
+  return buildRateLimitHeaders(entries, now);
 }
 
-export function consumeParseRateLimit(ip: string) {
+/**
+ * PRD §12 — sliding minute request cap + rolling-hour input bytes per IP.
+ */
+export function consumeParseRateLimit(
+  ip: string,
+  inputBytes: number,
+): RateLimitHeadersResult {
   const now = Date.now();
-  const activeRecords = filterActiveRecords(requestStore.get(ip) ?? [], now);
-  const burstRecords = filterWindowRecords(
-    activeRecords,
-    now,
-    PARSE_BURST_WINDOW_MS,
-  );
+  let entries = pruneEntries(store.get(ip) ?? [], now);
 
-  if (burstRecords.length >= PARSE_BURST_LIMIT) {
-    const retryAfterSeconds = toRetryAfterSeconds(
-      burstRecords[0]?.timestamp ?? now,
-      PARSE_BURST_WINDOW_MS,
+  if (minuteWindowCount(entries, now) >= MAX_REQUESTS_PER_MINUTE) {
+    const retryAfterSeconds = retryAfterSecondsFromOldestInMinute(
+      entries,
+      now,
     );
 
-    throw new AppError(429, "rate_limited", "Too many requests, try again later.", {
-      headers: new Headers({
-        ...Object.fromEntries(buildRateLimitHeaders(activeRecords, now).entries()),
-        "Retry-After": String(retryAfterSeconds),
-      }),
-      details: {
-        rateLimitTier: 3,
-        requestCount: burstRecords.length,
-        retryAfterSeconds,
+    throw new AppError(
+      429,
+      "rate_limited",
+      `Too many requests. Try again in ${retryAfterSeconds} seconds.`,
+      {
+        headers: new Headers({
+          ...Object.fromEntries(buildRateLimitHeaders(entries, now).entries()),
+          "Retry-After": String(retryAfterSeconds),
+        }),
+        details: {
+          rateLimitTier: 1,
+          requestCount: minuteWindowCount(entries, now),
+          retryAfterSeconds,
+        },
       },
-    });
+    );
   }
 
-  if (activeRecords.length >= PARSE_RATE_LIMIT_PER_MINUTE) {
-    const retryAfterSeconds = toRetryAfterSeconds(
-      activeRecords[0]?.timestamp ?? now,
-      PARSE_RATE_LIMIT_WINDOW_MS,
+  if (hourByteTotal(entries) + inputBytes > MAX_BYTES_PER_HOUR) {
+    const retryAfterSeconds = retryAfterSecondsForByteRelief(
+      entries,
+      now,
+      inputBytes,
     );
 
-    throw new AppError(429, "rate_limited", "Too many requests, try again later.", {
-      headers: new Headers({
-        ...Object.fromEntries(buildRateLimitHeaders(activeRecords, now).entries()),
-        "Retry-After": String(retryAfterSeconds),
-      }),
-      details: {
-        rateLimitTier: 1,
-        requestCount: activeRecords.length,
-        retryAfterSeconds,
+    throw new AppError(
+      429,
+      "rate_limited",
+      "Input limit reached. Try again later.",
+      {
+        headers: new Headers({
+          ...Object.fromEntries(buildRateLimitHeaders(entries, now).entries()),
+          "Retry-After": String(retryAfterSeconds),
+        }),
+        details: {
+          rateLimitTier: 2,
+          requestCount: minuteWindowCount(entries, now),
+          retryAfterSeconds,
+        },
       },
-    });
+    );
   }
 
-  const nextRecords = [...activeRecords, { timestamp: now }];
-  requestStore.set(ip, nextRecords);
+  entries = [...entries, { t: now, bytes: inputBytes }];
+  store.set(ip, entries);
 
   return {
-    headers: buildRateLimitHeaders(nextRecords, now),
-    requestCount: nextRecords.length,
+    headers: buildRateLimitHeaders(entries, now),
   };
 }
 
-const cleanupTimer = setInterval(() => {
+setInterval(() => {
   const now = Date.now();
+  const cutoff = now - HOUR_MS * 2;
 
-  for (const [ip, records] of requestStore.entries()) {
-    const activeRecords = filterActiveRecords(records, now);
+  for (const [key, entries] of store.entries()) {
+    const next = entries.filter((e) => e.t > cutoff);
 
-    if (activeRecords.length > 0) {
-      requestStore.set(ip, activeRecords);
+    if (next.length > 0) {
+      store.set(key, next);
     } else {
-      requestStore.delete(ip);
+      store.delete(key);
     }
   }
-}, RATE_LIMIT_CLEANUP_INTERVAL_MS);
-
-cleanupTimer.unref?.();
+}, RATE_LIMIT_CLEANUP_INTERVAL_MS).unref?.();

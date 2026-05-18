@@ -148,7 +148,7 @@ const tests = [
         }),
         body: JSON.stringify({
           parser: "ls",
-          input: "x".repeat(110_000),
+          input: "x".repeat(700_000),
         }),
       });
       return {
@@ -200,7 +200,7 @@ const tests = [
   },
   {
     id: "P10",
-    expected: "35 parse requests in under 30 seconds hit 429 before request 31",
+    expected: "35 parse requests in under 30 seconds hit 429 by request 21 (PRD rate limit)",
     run: async () => {
       const statuses = [];
 
@@ -218,8 +218,30 @@ const tests = [
       const first429Index = statuses.findIndex((status) => status === 429);
 
       return {
-        pass: first429Index !== -1 && first429Index < 30,
+        pass: first429Index === 20,
         actual: summarize({ statuses, first429Request: first429Index + 1 }),
+      };
+    },
+  },
+  {
+    id: "P11",
+    expected: "GET /privacy returns 200",
+    run: async () => {
+      const { response } = await request("/privacy");
+      return {
+        pass: response.status === 200,
+        actual: summarize({ status: response.status }),
+      };
+    },
+  },
+  {
+    id: "P12",
+    expected: "GET /terms returns 200",
+    run: async () => {
+      const { response } = await request("/terms");
+      return {
+        pass: response.status === 200,
+        actual: summarize({ status: response.status }),
       };
     },
   },

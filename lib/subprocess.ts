@@ -74,8 +74,8 @@ export async function runProcess({
   maxStderrBytes = MAX_PARSE_STDERR_BYTES,
   unavailableMessage = "The parsing runtime is unavailable on this server. Install the required parser runtime and restart the app.",
   startupFailureMessage = "The parsing runtime could not be started on this server.",
-  timeoutMessage = "The parsing request took too long. Try a smaller input or a different format.",
-  outputLimitMessage = "The parsed response is larger than this workspace allows.",
+  timeoutMessage = "Parsing timed out. Try a smaller input.",
+  outputLimitMessage = "Parser output exceeded the size limit.",
   interruptedMessage = "The parsing runtime stopped before returning a complete response.",
 }: RunProcessOptions): Promise<ProcessResult> {
   const releaseSubprocessSlot = acquireSubprocessSlot();

@@ -42,7 +42,7 @@ function readValidatedIp(value: string | null) {
 
 export function extractClientIp(request: Request) {
   const forwardedHeader = request.headers.get("x-forwarded-for");
-  const firstForwardedIp = forwardedHeader?.split(",")[0] ?? null;
+  const firstForwardedIp = forwardedHeader?.split(",")[0]?.trim() ?? null;
 
   return (
     readValidatedIp(firstForwardedIp) ??

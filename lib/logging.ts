@@ -6,6 +6,7 @@ const LOG_HASH_SECRET =
 
 type ParseRequestLog = {
   timestamp: string;
+  requestId: string | null;
   ipHash: string;
   parser: string | null;
   inputBytes: number;
@@ -44,6 +45,7 @@ export function logParseRequest(log: ParseRequestLog) {
   writeLog({
     event: "parse_request",
     timestamp: log.timestamp,
+    requestId: log.requestId,
     ipHash: log.ipHash,
     parser: log.parser,
     inputBytes: log.inputBytes,

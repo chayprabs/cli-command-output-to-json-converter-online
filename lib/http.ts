@@ -54,9 +54,15 @@ export function errorResponse(
   code: ApiErrorCode,
   error: string,
   init: ResponseInit = {},
+  requestId?: string,
 ) {
   return jsonResponse<ApiErrorResponse>(
-    { success: false, error, code },
+    {
+      success: false,
+      error,
+      code,
+      ...(requestId ? { requestId } : {}),
+    },
     {
       ...init,
       status,
@@ -121,7 +127,11 @@ export async function readJsonRequest<T>(
   const reader = request.body?.getReader();
 
   if (!reader) {
-    throw new AppError(400, "invalid_json", "Request body must be valid JSON.");
+    throw new AppError(
+      400,
+      "bad_request",
+      "Request body must be valid JSON.",
+    );
   }
 
   const decoder = new TextDecoder();
@@ -156,12 +166,20 @@ export async function readJsonRequest<T>(
   }
 
   if (!body.trim()) {
-    throw new AppError(400, "invalid_json", "Request body must be valid JSON.");
+    throw new AppError(
+      400,
+      "bad_request",
+      "Request body must be valid JSON.",
+    );
   }
 
   try {
     return JSON.parse(body) as T;
   } catch {
-    throw new AppError(400, "invalid_json", "Request body must be valid JSON.");
+    throw new AppError(
+      400,
+      "bad_request",
+      "Request body must be valid JSON.",
+    );
   }
 }

@@ -22,6 +22,19 @@ export const metadata: Metadata = {
     "Paste terminal output, choose a format, and inspect structured JSON in one focused workspace.",
 };
 
+const CONTENT_SECURITY_POLICY = [
+  "default-src 'self'",
+  "script-src 'self' 'unsafe-inline'",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data:",
+  "font-src 'self'",
+  "connect-src 'self'",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "frame-ancestors 'none'",
+  "form-action 'self'",
+].join("; ");
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -29,6 +42,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${uiFont.variable} ${codeFont.variable}`}>
+      <head>
+        <meta httpEquiv="Content-Security-Policy" content={CONTENT_SECURITY_POLICY} />
+      </head>
       <body className="app-body">
         {children}
       </body>

@@ -18,6 +18,7 @@ export type ResultErrorView = {
   title: string;
   message: string;
   hint: string;
+  requestId?: string;
 };
 
 export type EmptyStateView = {
@@ -186,7 +187,7 @@ function ChevronDownIcon() {
 function getCopyButtonLabel(copyState: ResultCopyState) {
   switch (copyState) {
     case "success":
-      return "Copied!";
+      return "Copied.";
     case "manual":
       return "Manual copy";
     case "failed":
@@ -215,7 +216,7 @@ function getDownloadButtonLabel(
 function getShareButtonLabel(shareState: ShareCopyState) {
   switch (shareState) {
     case "copied":
-      return "Link copied!";
+      return "Link copied.";
     case "manual":
       return "Copy link manually";
     default:
@@ -520,6 +521,11 @@ export function ResultPanel({
                 <h3 className="error-state__title">{resultError.title}</h3>
                 <p className="error-state__message">{resultError.message}</p>
                 <p className="error-state__hint">{resultError.hint}</p>
+                {resultError.requestId ? (
+                  <p className="error-state__hint error-state__request-id">
+                    Request ID: {resultError.requestId}
+                  </p>
+                ) : null}
               </div>
             ) : null}
 
@@ -551,6 +557,12 @@ export function ResultPanel({
                 ) : null}
 
                 <div className="result-panel__scroller">
+                  {resultView.displayTruncated ? (
+                    <p className="field-caption result-panel__truncate-notice">
+                      Output is large — showing first 50,000 characters. Download
+                      for the full result.
+                    </p>
+                  ) : null}
                   <pre className="json-output">
                     {resultView.tokens
                       ? resultView.tokens.map((token, index) => (

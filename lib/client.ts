@@ -5,7 +5,8 @@ import type {
 } from "./api";
 import {
   CLIENT_REQUEST_TIMEOUT_MS,
-  MAX_HIGHLIGHTED_RESULT_BYTES,
+  MAX_DISPLAY_RESULT_CHARS,
+  MAX_HIGHLIGHT_RESULT_CHARS,
 } from "./constants";
 
 const BYTE_FORMATTER = new Intl.NumberFormat("en-US");
@@ -31,6 +32,9 @@ export type ResultView = {
   text: string;
   tokens: JsonToken[] | null;
   byteLength: number;
+  /** Full serialized JSON length in characters (before on-screen truncation). */
+  fullCharLength: number;
+  displayTruncated: boolean;
 };
 
 export class TimeoutError extends Error {
@@ -43,6 +47,28 @@ export class TimeoutError extends Error {
 
 export function readUtf8ByteLength(value: string) {
   return TEXT_ENCODER.encode(value).length;
+}
+
+/** Trim a string so its UTF-8 byte length does not exceed maxBytes. */
+export function truncateUtf8StringByBytes(text: string, maxBytes: number) {
+  if (readUtf8ByteLength(text) <= maxBytes) {
+    return text;
+  }
+
+  let low = 0;
+  let high = text.length;
+
+  while (low < high) {
+    const mid = Math.ceil((low + high) / 2);
+
+    if (readUtf8ByteLength(text.slice(0, mid)) <= maxBytes) {
+      low = mid;
+    } else {
+      high = mid - 1;
+    }
+  }
+
+  return text.slice(0, low);
 }
 
 export function formatBytes(bytes: number) {
@@ -260,14 +286,22 @@ export function copySelectedText() {
 }
 
 export function formatResultForDisplay(data: unknown): ResultView {
-  const text = JSON.stringify(data, null, 2);
+  const fullText = JSON.stringify(data, null, 2);
+  const fullCharLength = fullText.length;
+  const displayTruncated = fullCharLength > MAX_DISPLAY_RESULT_CHARS;
+  const text = displayTruncated
+    ? fullText.slice(0, MAX_DISPLAY_RESULT_CHARS)
+    : fullText;
   const byteLength = readUtf8ByteLength(text);
+  const highlight =
+    fullCharLength <= MAX_HIGHLIGHT_RESULT_CHARS ? tokenizeJson(text) : null;
 
   return {
     text,
-    tokens:
-      byteLength <= MAX_HIGHLIGHTED_RESULT_BYTES ? tokenizeJson(text) : null,
+    tokens: highlight,
     byteLength,
+    fullCharLength,
+    displayTruncated,
   };
 }
 

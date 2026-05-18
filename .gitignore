@@ -4,3 +4,6 @@ npm-debug.log*
 .tmp-runtime-audit
 *.log
 *.err.log
+tsconfig.tsbuildinfo
+cli-command-output-to-json-converter-online.pdf
+*.pdf

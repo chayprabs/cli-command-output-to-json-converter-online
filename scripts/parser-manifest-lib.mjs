@@ -61,7 +61,7 @@ export function deriveManifestFromAbout(about) {
             description: normalizeDescription(slug, entry.description),
           };
         })
-        .filter((entry) => /^[a-z][a-z0-9_-]{0,30}$/.test(entry.slug))
+        .filter((entry) => /^[a-z0-9_-]{1,64}$/.test(entry.slug))
         .sort((left, right) => left.slug.localeCompare(right.slug))
         .map((entry) => [entry.slug, entry]),
     ).values(),

@@ -1,7 +1,4 @@
-import {
-  MAX_PARSER_ABOUT_BYTES,
-  PARSER_RUNTIME_EXPECTED_VERSION,
-} from "./constants";
+import { MAX_PARSER_ABOUT_BYTES } from "./constants";
 import { AppError } from "./errors";
 import { joinProcessOutput, runProcess } from "./subprocess";
 import {
@@ -145,14 +142,6 @@ async function probeRuntime(candidate: RuntimeCandidate) {
     throw new Error("Runtime probe returned no version.");
   }
 
-  if (version !== PARSER_RUNTIME_EXPECTED_VERSION) {
-    throw new AppError(
-      503,
-      "runtime_unavailable",
-      `The parsing runtime version must be ${PARSER_RUNTIME_EXPECTED_VERSION}.`,
-    );
-  }
-
   return {
     ...candidate,
     version,
@@ -201,7 +190,7 @@ async function runRuntimeJson<T>(
   });
 
   if (result.exitCode !== 0) {
-    throw new AppError(422, "parse_failed", "The parser could not read the provided input.", {
+    throw new AppError(422, "parse_failed", "Could not parse the input for this format.", {
       details: {
         exitCode: result.exitCode,
         stderrBytes: result.stderrBytes,

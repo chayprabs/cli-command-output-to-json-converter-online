@@ -1,4 +1,5 @@
 import type { ApiErrorCode } from "./api";
+import { sanitizeClientErrorMessage } from "./error-sanitizer";
 
 type ErrorFallback = {
   status: number;
@@ -41,9 +42,8 @@ function sanitizeUnexpectedMessage(message: string) {
     return null;
   }
 
-  return normalized.length > 240
-    ? `${normalized.slice(0, 237).trimEnd()}...`
-    : normalized;
+  const scrubbed = sanitizeClientErrorMessage(normalized);
+  return scrubbed || null;
 }
 
 export class AppError extends Error {
