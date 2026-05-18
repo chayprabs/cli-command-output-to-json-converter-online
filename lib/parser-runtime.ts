@@ -1,4 +1,5 @@
 import { MAX_PARSER_ABOUT_BYTES } from "./constants";
+import { sanitizeJcStderr } from "./error-sanitizer";
 import { AppError } from "./errors";
 import { joinProcessOutput, runProcess } from "./subprocess";
 import {
@@ -190,7 +191,13 @@ async function runRuntimeJson<T>(
   });
 
   if (result.exitCode !== 0) {
-    throw new AppError(422, "parse_failed", "Could not parse the input for this format.", {
+    const sanitizedStderr = sanitizeJcStderr(result.stderr);
+    const parseMessage =
+      sanitizedStderr.length > 0
+        ? sanitizedStderr
+        : "Could not parse the input for this format.";
+
+    throw new AppError(422, "parse_failed", parseMessage, {
       details: {
         exitCode: result.exitCode,
         stderrBytes: result.stderrBytes,

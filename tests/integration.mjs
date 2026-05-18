@@ -12,6 +12,20 @@ root         1  0.0  0.1 225344  9000 ?        Ss   09:00   0:01 /sbin/init
 user      1234  0.5  2.3 512000 45000 pts/0    Sl   09:30   0:45 node server.js
 root      5678  0.0  0.0  14224  1024 ?        S    09:00   0:00 /sbin/syslogd`;
 
+const digInput = `; <<>> DiG 9.16.1-Ubuntu <<>> google.com
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 12345
+;; flags: qr rd ra; QUERY: 1, ANSWER: 1, AUTHORITY: 0, ADDITIONAL: 1
+;; QUESTION SECTION:
+;google.com.                    IN      A
+;; ANSWER SECTION:
+google.com.             299     IN      A       142.250.80.46
+;; Query time: 23 msec
+;; SERVER: 8.8.8.8#53(8.8.8.8)
+;; WHEN: Mon Apr 01 10:00:00 UTC 2024
+;; MSG SIZE  rcvd: 55`;
+
 function summarize(value) {
   const text =
     typeof value === "string" ? value : JSON.stringify(value, null, 0);
@@ -99,6 +113,27 @@ const tests = [
       const success = asParseSuccess(body);
       return {
         pass: response.status === 200 && Array.isArray(success?.data),
+        actual: summarize({ status: response.status, body }),
+      };
+    },
+  },
+  {
+    id: "P3b",
+    expected: "POST /api/parse with dig input returns 200 and structured JSON",
+    run: async () => {
+      const { response, body } = await request("/api/parse", {
+        method: "POST",
+        headers: buildHeaders("198.51.100.20", {
+          "Content-Type": "application/json",
+        }),
+        body: JSON.stringify({ parser: "dig", input: digInput }),
+      });
+      const success = asParseSuccess(body);
+      return {
+        pass:
+          response.status === 200 &&
+          success?.data !== null &&
+          typeof success.data === "object",
         actual: summarize({ status: response.status, body }),
       };
     },

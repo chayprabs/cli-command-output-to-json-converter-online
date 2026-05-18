@@ -10,7 +10,8 @@ const SHARED_SECURITY_HEADERS = {
 } as const;
 
 const API_ONLY_HEADERS = {
-  "Cache-Control": "no-store",
+  "Cache-Control": "no-store, no-cache",
+  Pragma: "no-cache",
 } as const;
 
 export function middleware(request: NextRequest) {

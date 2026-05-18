@@ -104,7 +104,7 @@ async function verifyOversizedPayload() {
     }),
     body: JSON.stringify({
       parser: "ls",
-      input: "x".repeat(110_000),
+      input: "x".repeat(530_000),
     }),
   });
 

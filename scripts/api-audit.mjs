@@ -518,7 +518,7 @@ const tests = [
   {
     id: "S4",
     input: 'POST /api/parse invalid JSON body "{"',
-    expected: "HTTP 400 invalid_json with no stack trace leakage",
+    expected: "HTTP 400 bad_request with PRD JSON message and no stack trace leakage",
     run: async () => {
       const { response, body } = await request("/api/parse", {
         method: "POST",
@@ -529,8 +529,8 @@ const tests = [
         pass:
           response.status === 400 &&
           body?.success === false &&
-          body?.code === "invalid_json" &&
-          typeof body?.error === "string" &&
+          body?.code === "bad_request" &&
+          body?.error === "Request body must be valid JSON." &&
           !/stack|SyntaxError|at /i.test(body.error),
         actual: summarize({ status: response.status, body }),
       };
@@ -538,12 +538,12 @@ const tests = [
   },
   {
     id: "S5",
-    input: "POST /api/parse body > 1 MB",
+    input: "POST /api/parse body > 600 KB (PRD limit)",
     expected: "HTTP 413 payload_too_large before the server crashes or hangs",
     run: async () => {
       const oversizeBody = JSON.stringify({
         parser: "ls",
-        input: "x".repeat(1_050_000),
+        input: "x".repeat(700_000),
       });
       const { response, body } = await request(
         "/api/parse",
