@@ -74,6 +74,7 @@ jobs:
           exit 1
         shell: bash
       - run: node tests/integration.mjs
+      - run: BASE_URL=http://127.0.0.1:3000 npm run test:api
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
         env:

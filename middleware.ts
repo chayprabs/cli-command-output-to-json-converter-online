@@ -22,7 +22,10 @@ export function middleware(request: NextRequest) {
     response.headers.set(key, value);
   }
 
-  if (isApi) {
+  const isParserCatalogGet =
+    request.nextUrl.pathname === "/api/parsers" && request.method === "GET";
+
+  if (isApi && !isParserCatalogGet) {
     for (const [key, value] of Object.entries(API_ONLY_HEADERS)) {
       response.headers.set(key, value);
     }
@@ -32,5 +35,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/", "/privacy", "/terms", "/api/:path*"],
+  matcher: ["/", "/api/:path*"],
 };

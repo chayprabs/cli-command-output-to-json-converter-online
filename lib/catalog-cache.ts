@@ -9,32 +9,40 @@ export type CatalogSnapshot = {
   available: boolean;
   parsers: readonly ParserSummary[];
   allowlist: ReadonlySet<string>;
+  jcArgumentBySlug: ReadonlyMap<string, string>;
 };
 
 let catalogPromise: Promise<CatalogSnapshot> | null = null;
 
+function extractCommandHint(description: string | undefined) {
+  const normalized = description?.trim();
+  if (!normalized) {
+    return undefined;
+  }
+  const match = normalized.match(/`([^`]+)`/);
+  return match?.[1];
+}
+
 function normalizeDescription(slug: string, description: string | undefined) {
   const normalized = description?.trim();
-
   if (normalized) {
     return normalized;
   }
-
   const readableSlug = slug.replace(/-/g, " ");
-
   if (slug.endsWith("-s")) {
     return `Streams ${readableSlug.slice(0, -2).trim()} input into structured JSON.`;
   }
-
   return `Transforms ${readableSlug} input into structured JSON.`;
 }
 
-function slugFromCatalogEntry(entry: RuntimeCatalogEntry): string {
+function jcArgumentFromCatalogEntry(entry: RuntimeCatalogEntry) {
   return String(entry.argument ?? "")
     .trim()
-    .replace(/^--/, "")
-    .replace(/_/g, "-")
-    .toLowerCase();
+    .replace(/^--/, "");
+}
+
+function slugFromCatalogEntry(entry: RuntimeCatalogEntry) {
+  return jcArgumentFromCatalogEntry(entry).replace(/_/g, "-").toLowerCase();
 }
 
 function deriveParsersFromAbout(
@@ -49,16 +57,20 @@ function deriveParsersFromAbout(
       entries
         .filter((entry) => !entry.hidden && !entry.deprecated)
         .map((entry) => {
+          const jcArgument = jcArgumentFromCatalogEntry(entry);
           const slug = slugFromCatalogEntry(entry);
-
           return {
             slug,
+            jcArgument,
             description: normalizeDescription(slug, entry.description),
+            commandHint: extractCommandHint(entry.description),
           };
         })
         .filter(
-          (item): item is ParserSummary =>
+          (item) =>
             typeof item.slug === "string" &&
+            typeof item.jcArgument === "string" &&
+            item.jcArgument.length > 0 &&
             typeof item.description === "string" &&
             PARSER_SLUG_PATTERN.test(item.slug),
         )
@@ -79,6 +91,7 @@ async function loadCatalogSnapshot(): Promise<CatalogSnapshot> {
         available: false,
         parsers: [],
         allowlist: new Set(),
+        jcArgumentBySlug: new Map(),
       };
     }
 
@@ -86,19 +99,20 @@ async function loadCatalogSnapshot(): Promise<CatalogSnapshot> {
       available: true,
       parsers: Object.freeze(parsers.slice()),
       allowlist: new Set(parsers.map((p) => p.slug)),
+      jcArgumentBySlug: new Map(
+        parsers.map((p) => [p.slug, p.jcArgument] as const),
+      ),
     };
   } catch {
     return {
       available: false,
       parsers: [],
       allowlist: new Set(),
+      jcArgumentBySlug: new Map(),
     };
   }
 }
 
-/**
- * Loads jc --about once per process and caches the allowlist (PRD §4.3).
- */
 export function getCatalogSnapshot(): Promise<CatalogSnapshot> {
   if (!catalogPromise) {
     catalogPromise = loadCatalogSnapshot().then((snapshot) => {
@@ -108,6 +122,12 @@ export function getCatalogSnapshot(): Promise<CatalogSnapshot> {
       return snapshot;
     });
   }
-
   return catalogPromise;
+}
+
+export function resolveJcArgument(
+  catalog: CatalogSnapshot,
+  slug: string,
+): string | null {
+  return catalog.jcArgumentBySlug.get(slug) ?? null;
 }

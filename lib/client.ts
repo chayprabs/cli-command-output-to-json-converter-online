@@ -211,7 +211,9 @@ export function isParserSummaryList(body: unknown): body is ParserSummary[] {
         "slug" in entry &&
         typeof entry.slug === "string" &&
         "description" in entry &&
-        typeof entry.description === "string",
+        typeof entry.description === "string" &&
+        "jcArgument" in entry &&
+        typeof entry.jcArgument === "string",
     )
   );
 }
@@ -285,8 +287,14 @@ export function copySelectedText() {
   }
 }
 
-export function formatResultForDisplay(data: unknown): ResultView {
-  const fullText = JSON.stringify(data, null, 2);
+export function formatResultForDisplay(
+  data: unknown,
+  outputFormat: "json" | "yaml" = "json",
+): ResultView {
+  const fullText =
+    outputFormat === "yaml" && typeof data === "string"
+      ? data
+      : JSON.stringify(data, null, 2);
   const fullCharLength = fullText.length;
   const displayTruncated = fullCharLength > MAX_DISPLAY_RESULT_CHARS;
   const text = displayTruncated
@@ -294,7 +302,9 @@ export function formatResultForDisplay(data: unknown): ResultView {
     : fullText;
   const byteLength = readUtf8ByteLength(text);
   const highlight =
-    fullCharLength <= MAX_HIGHLIGHT_RESULT_CHARS ? tokenizeJson(text) : null;
+    outputFormat === "json" && fullCharLength <= MAX_HIGHLIGHT_RESULT_CHARS
+      ? tokenizeJson(text)
+      : null;
 
   return {
     text,

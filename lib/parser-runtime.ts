@@ -1,6 +1,7 @@
 import { MAX_PARSER_ABOUT_BYTES } from "./constants";
 import { sanitizeJcStderr } from "./error-sanitizer";
 import { AppError } from "./errors";
+import type { ParseOptions } from "./parse-options";
 import { joinProcessOutput, runProcess } from "./subprocess";
 import {
   buildFormatArgs,
@@ -226,6 +227,67 @@ export async function loadRuntimeCatalog() {
   );
 }
 
-export async function parseWithFormat<T>(slug: string, input?: string) {
-  return runRuntimeJson<T>(buildFormatArgs(slug), input);
+export async function getParserRuntimeVersion() {
+  const runtime = await ensureParserRuntimeReady();
+  return runtime.version;
+}
+
+export async function parseWithFormat<T>(
+  jcArgument: string,
+  input?: string,
+  options?: ParseOptions,
+) {
+  if (options?.outputFormat === "yaml") {
+    const runtime = await ensureParserRuntimeReady();
+    const result = await runProcess({
+      command: runtime.command,
+      args: [...runtime.baseArgs, ...buildFormatArgs(jcArgument, options)],
+      input,
+    });
+
+    if (result.exitCode !== 0) {
+      const sanitizedStderr = sanitizeJcStderr(result.stderr);
+      throw new AppError(
+        422,
+        "parse_failed",
+        sanitizedStderr.length > 0
+          ? sanitizedStderr
+          : "Could not parse the input for this format.",
+        {
+          details: {
+            exitCode: result.exitCode,
+            stderrBytes: result.stderrBytes,
+            failureType: "non_zero_exit",
+          },
+        },
+      );
+    }
+
+    const yamlText = cleanText(joinProcessOutput(result.stdout, result.stderr));
+
+    if (!yamlText) {
+      throw new AppError(
+        502,
+        "parse_failed",
+        "The parsing runtime returned an empty response for this format.",
+        {
+          details: {
+            exitCode: result.exitCode,
+            stderrBytes: result.stderrBytes,
+            failureType: "invalid_json",
+          },
+        },
+      );
+    }
+
+    return {
+      data: yamlText as T,
+      jsonBytes: Buffer.byteLength(yamlText, "utf8"),
+      jsonSource: "stdout" as const,
+      exitCode: result.exitCode,
+      stderrBytes: result.stderrBytes,
+    };
+  }
+
+  return runRuntimeJson<T>(buildFormatArgs(jcArgument, options), input);
 }

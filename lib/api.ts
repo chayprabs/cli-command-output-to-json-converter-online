@@ -1,11 +1,18 @@
 export type ParserSummary = {
   slug: string;
   description: string;
+  jcArgument: string;
+  commandHint?: string;
 };
 
 export type ParseRequestBody = {
   parser: string;
   input: string;
+  options?: {
+    outputFormat?: "json" | "yaml";
+    prettify?: boolean;
+    slurp?: boolean;
+  };
 };
 
 export type ParseMeta = {
@@ -47,4 +54,16 @@ export type ParseApiResponse = ParseSuccessResponse | ApiErrorResponse;
 
 export type HealthApiResponse = {
   status: "ok";
+  jcVersion?: string;
+  parserCount?: number;
+};
+
+export type StatusApiResponse = {
+  status: "ok";
+  jcVersion: string;
+  parserCount: number;
+  rateLimit: {
+    requestsPerMinute: number;
+    inputMegabytesPerHour: number;
+  };
 };

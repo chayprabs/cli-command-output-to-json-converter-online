@@ -1,4 +1,8 @@
-import type { ApiErrorResponse, HealthApiResponse } from "@/lib/api";
+import type { ApiErrorResponse, StatusApiResponse } from "@/lib/api";
+import {
+  PARSE_RATE_LIMIT_INPUT_MB_PER_HOUR,
+  PARSE_RATE_LIMIT_PER_MINUTE,
+} from "@/lib/constants";
 import { getCatalogSnapshot } from "@/lib/catalog-cache";
 import { normalizeAppError } from "@/lib/errors";
 import {
@@ -29,16 +33,20 @@ export async function GET() {
 
     const jcVersion = await getParserRuntimeVersion();
 
-    return jsonResponse<HealthApiResponse>({
+    return jsonResponse<StatusApiResponse>({
       status: "ok",
       jcVersion,
       parserCount: catalog.parsers.length,
+      rateLimit: {
+        requestsPerMinute: PARSE_RATE_LIMIT_PER_MINUTE,
+        inputMegabytesPerHour: PARSE_RATE_LIMIT_INPUT_MB_PER_HOUR,
+      },
     });
   } catch (error) {
     const appError = normalizeAppError(error, {
       status: 500,
       code: "internal_error",
-      message: "Unable to read service health.",
+      message: "Unable to read service status.",
     });
 
     return jsonResponse<ApiErrorResponse>(

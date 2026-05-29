@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
 import type { ParseApiResponse, ParseRequestBody } from "@/lib/api";
-import { getCatalogSnapshot } from "@/lib/catalog-cache";
+import { getCatalogSnapshot, resolveJcArgument } from "@/lib/catalog-cache";
 import {
   MAX_PARSE_INPUT_BYTES,
   MAX_PARSE_REQUEST_BYTES,
@@ -23,6 +23,7 @@ import {
 } from "@/lib/logging";
 import { consumeParseRateLimit, peekParseRateLimit } from "@/lib/rate-limit";
 import { PARSER_SLUG_PATTERN } from "@/lib/parsers";
+import { normalizeParseOptions } from "@/lib/parse-options";
 import { parseWithFormat } from "@/lib/parser-runtime";
 
 export const runtime = "nodejs";
@@ -41,9 +42,9 @@ function validateParseRequestPayload(body: unknown): ParseRequestBody {
   }
 
   const payload = body as ParseRequestPayload;
-  const allowedFields = new Set<keyof ParseRequestBody>(["parser", "input"]);
+  const allowedFields = new Set(["parser", "input", "options"]);
   const unknownFields = Object.keys(payload).filter(
-    (field) => !allowedFields.has(field as keyof ParseRequestBody),
+    (field) => !allowedFields.has(field),
   );
 
   if (unknownFields.length > 0) {
@@ -51,11 +52,19 @@ function validateParseRequestPayload(body: unknown): ParseRequestBody {
   }
 
   if (!("parser" in payload)) {
-    throw new AppError(400, "bad_request", "parser is required.");
+    throw new AppError(
+      400,
+      "bad_request",
+      "Choose a format (parser field is required).",
+    );
   }
 
   if (typeof payload.parser !== "string") {
-    throw new AppError(400, "bad_request", "parser is required.");
+    throw new AppError(
+      400,
+      "bad_request",
+      "Choose a format (parser field is required).",
+    );
   }
 
   const parser = payload.parser;
@@ -69,11 +78,19 @@ function validateParseRequestPayload(body: unknown): ParseRequestBody {
   }
 
   if (!("input" in payload)) {
-    throw new AppError(400, "bad_request", "input is required.");
+    throw new AppError(
+      400,
+      "bad_request",
+      "Paste terminal output (input field is required).",
+    );
   }
 
   if (typeof payload.input !== "string") {
-    throw new AppError(400, "bad_request", "input is required.");
+    throw new AppError(
+      400,
+      "bad_request",
+      "Paste terminal output (input field is required).",
+    );
   }
 
   const input = payload.input.trim();
@@ -86,9 +103,14 @@ function validateParseRequestPayload(body: unknown): ParseRequestBody {
     throw new AppError(400, "bad_request", "Input exceeds the 512 KB limit.");
   }
 
+  const options = normalizeParseOptions(
+    "options" in payload ? payload.options : undefined,
+  );
+
   return {
     parser,
     input,
+    ...(options ? { options } : {}),
   };
 }
 
@@ -197,9 +219,23 @@ export async function POST(request: Request) {
       );
     }
 
+    const jcArgument = resolveJcArgument(catalog, payload.parser);
+
+    if (!jcArgument) {
+      throw new AppError(
+        400,
+        "unknown_parser",
+        "Unknown parser. Choose a parser from the catalog.",
+      );
+    }
+
     headers = consumeParseRateLimit(clientIp, inputBytes).headers;
 
-    const parsed = await parseWithFormat<unknown>(payload.parser, payload.input);
+    const parsed = await parseWithFormat<unknown>(
+      jcArgument,
+      payload.input,
+      payload.options,
+    );
     subprocessExitCode = parsed.exitCode;
     const parsedAt = new Date().toISOString();
 

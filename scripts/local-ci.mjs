@@ -64,6 +64,12 @@ try {
       BASE_URL: baseUrl,
     },
   });
+  await runCommand(process.execPath, [npmCli, "run", "test:api"], {
+    env: {
+      ...process.env,
+      BASE_URL: baseUrl,
+    },
+  });
   await runCommand(process.execPath, [npmCli, "run", "test:e2e"], {
     env: {
       ...process.env,

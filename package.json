@@ -1,9 +1,9 @@
 {
   "name": "parsedeck",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "description": "Paste terminal output, choose a format, and turn raw text into structured JSON for automation and debugging.",
-  "author": "Chaitanya Prabuddha",
+  "author": "CLI Parse Web",
   "license": "MIT",
   "keywords": [
     "terminal",

@@ -18,6 +18,7 @@ import type {
   ParseMeta,
   ParseRequestBody,
   ParserSummary,
+  StatusApiResponse,
 } from "@/lib/api";
 import {
   fetchJsonWithTimeout,
@@ -41,6 +42,7 @@ import {
   MAX_PARSE_INPUT_BYTES,
   MAX_VISIBLE_PARSER_RESULTS,
   PARSER_STORAGE_KEY,
+  AUTO_PARSE_STORAGE_KEY,
   TRANSIENT_UI_FEEDBACK_MS,
 } from "@/lib/constants";
 import {
@@ -53,12 +55,18 @@ import {
 } from "@/lib/export";
 import { getParserExample } from "@/lib/examples";
 import {
+  DEFAULT_PARSE_OPTIONS,
+  type ParseOptions,
+} from "@/lib/parse-options";
+import {
   compressToBase64,
   decodeAppState,
   decodeHashStateFromLocationHash,
   encodeAppStateForUrl,
   isValidParserSlug,
 } from "@/lib/url-state";
+import { ParseOptionsBar } from "./parse-options-bar";
+import { RuntimeStatusBar } from "./runtime-status-bar";
 import { ParserSelector } from "./parser-selector";
 import {
   type EmptyStateView,
@@ -381,6 +389,12 @@ export function WorkbenchPage() {
   const [sharedParserMessage, setSharedParserMessage] = useState("");
   const [sharedInputWarning, setSharedInputWarning] = useState("");
   const [shareEncodeError, setShareEncodeError] = useState("");
+  const [parseOptions, setParseOptions] = useState<ParseOptions>(DEFAULT_PARSE_OPTIONS);
+  const [autoParseEnabled, setAutoParseEnabled] = useState(true);
+  const [runtimeStatus, setRuntimeStatus] = useState<StatusApiResponse | null>(null);
+  const [runtimeStatusLoading, setRuntimeStatusLoading] = useState(true);
+  const [runtimeStatusError, setRuntimeStatusError] = useState("");
+  const [rateLimitNotice, setRateLimitNotice] = useState("");
 
   const parseAbortRef = useRef<AbortController | null>(null);
   const copyTimerRef = useRef<number | null>(null);
@@ -590,6 +604,44 @@ export function WorkbenchPage() {
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps -- shared-link hydration; helpers intentionally omitted
   }, [pendingSharedState, parsers, parsersError, parsersLoading]);
+
+  useEffect(() => {
+    const savedAuto = safeReadStorage(AUTO_PARSE_STORAGE_KEY);
+    if (savedAuto === "0") {
+      setAutoParseEnabled(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    async function loadStatus() {
+      setRuntimeStatusLoading(true);
+      setRuntimeStatusError("");
+      try {
+        const { response, body } = await fetchJsonWithTimeout(
+          "/api/status",
+          { signal: controller.signal },
+          CLIENT_REQUEST_TIMEOUT_MS,
+        );
+        if (!response.ok) {
+          throw new Error("Status unavailable");
+        }
+        setRuntimeStatus(body as StatusApiResponse);
+      } catch (error) {
+        if (!isAbortError(error)) {
+          setRuntimeStatusError(
+            "Could not load runtime status. Parsing may still work.",
+          );
+        }
+      } finally {
+        setRuntimeStatusLoading(false);
+      }
+    }
+
+    void loadStatus();
+    return () => controller.abort();
+  }, []);
 
   useEffect(() => {
     if (!parser) {
@@ -1047,10 +1099,16 @@ export function WorkbenchPage() {
           body: JSON.stringify({
             parser: nextParser,
             input: nextInput,
+            options: parseOptions,
           } satisfies ParseRequestBody),
         },
         CLIENT_REQUEST_TIMEOUT_MS,
       );
+
+      const remaining = response.headers.get("X-RateLimit-Remaining");
+      if (remaining) {
+        setRateLimitNotice(`${remaining} parses left this minute`);
+      }
 
       if (!response.ok || isApiErrorResponse(body)) {
         const apiBody = isApiErrorResponse(body) ? body : null;
@@ -1074,7 +1132,10 @@ export function WorkbenchPage() {
         );
       }
 
-      const nextResultView = formatResultForDisplay(body.data);
+      const nextResultView = formatResultForDisplay(
+        body.data,
+        parseOptions.outputFormat === "yaml" ? "yaml" : "json",
+      );
       setRenderSequence((current) => current + 1);
       setIsResultFlashing(true);
 
@@ -1130,6 +1191,7 @@ export function WorkbenchPage() {
     }
 
     if (
+      !autoParseEnabled ||
       !parser.trim() ||
       !input.trim() ||
       inputTooLarge ||
@@ -1157,6 +1219,7 @@ export function WorkbenchPage() {
     parsersLoading,
     parsersError,
     isBusy,
+    autoParseEnabled,
   ]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -1306,6 +1369,12 @@ export function WorkbenchPage() {
       <SiteHeader />
       <SeoBar />
 
+      <RuntimeStatusBar
+        status={runtimeStatus}
+        loading={runtimeStatusLoading}
+        error={runtimeStatusError}
+      />
+
       <main className="app-page__main">
         <div className="panel-grid">
           <section className="panel" aria-labelledby="input-section-title">
@@ -1363,7 +1432,7 @@ export function WorkbenchPage() {
                 ) : null}
 
                 {isSharedViewVisible ? (
-                  <div className="catalog-banner">
+                  <div className="info-banner catalog-banner">
                     <div className="catalog-banner__copy">
                       <p className="catalog-banner__title">Shared sample loaded</p>
                       <p className="catalog-banner__message">
@@ -1383,7 +1452,7 @@ export function WorkbenchPage() {
                 ) : null}
 
                 {sharedInputWarning ? (
-                  <div className="catalog-banner">
+                  <div className="info-banner catalog-banner">
                     <div className="catalog-banner__copy">
                       <p className="catalog-banner__title">Shared input trimmed</p>
                       <p className="catalog-banner__message">{sharedInputWarning}</p>
@@ -1398,6 +1467,24 @@ export function WorkbenchPage() {
                       <p className="catalog-banner__message">{shareEncodeError}</p>
                     </div>
                   </div>
+                ) : null}
+
+                <ParseOptionsBar
+                  options={parseOptions}
+                  autoParseEnabled={autoParseEnabled}
+                  disabled={isBusy || parsersLoading}
+                  onChange={(next) => {
+                    setParseOptions(next);
+                    clearResultState();
+                  }}
+                  onAutoParseChange={(enabled) => {
+                    setAutoParseEnabled(enabled);
+                    safeWriteStorage(AUTO_PARSE_STORAGE_KEY, enabled ? "1" : "0");
+                  }}
+                />
+
+                {rateLimitNotice ? (
+                  <p className="helper-message">{rateLimitNotice}</p>
                 ) : null}
 
                 <div className="field-label-row">
@@ -1418,8 +1505,10 @@ export function WorkbenchPage() {
                   <div className="editor-shell__toolbar">
                     <p className="field-caption">
                       {selectedParser
-                        ? `Example placeholder is tuned for ${selectedParser.slug}.`
-                        : "Select a parser to load a realistic placeholder example."}
+                        ? selectedParser.commandHint
+                          ? `Expected command: ${selectedParser.commandHint}`
+                          : `Format: ${selectedParser.slug}`
+                        : "Select a format to see a command hint."}
                     </p>
                     <div className="editor-shell__status">
                       {isSharedStateLoading
@@ -1473,6 +1562,54 @@ export function WorkbenchPage() {
                 </p>
 
                 <div className="input-actions">
+                  <label className="button button--secondary input-file-button">
+                    Upload file
+                    <input
+                      type="file"
+                      accept=".txt,.log,.out,text/plain"
+                      className="visually-hidden"
+                      disabled={isBusy}
+                      onChange={(event) => {
+                        const file = event.target.files?.[0];
+                        if (!file) {
+                          return;
+                        }
+                        void file.text().then((text) => {
+                          setInput(text);
+                          setFormError("");
+                        });
+                        event.target.value = "";
+                      }}
+                    />
+                  </label>
+
+                  <button
+                    type="button"
+                    className="button button--secondary"
+                    disabled={!parser || isBusy}
+                    onClick={() => {
+                      if (!parser) {
+                        return;
+                      }
+                      setInput(getParserExample(parser));
+                      setFormError("");
+                    }}
+                  >
+                    Load sample
+                  </button>
+
+                  <button
+                    type="button"
+                    className="button button--secondary"
+                    disabled={!parser.trim() || !input.trim() || isBusy}
+                    onClick={() => {
+                      void replaceUrlWithParserAndInput(parser, input);
+                      void handleShareUrl();
+                    }}
+                  >
+                    Copy share link
+                  </button>
+
                   <button
                     type="submit"
                     className="button button--primary"
@@ -1541,7 +1678,7 @@ export function WorkbenchPage() {
             }}
             shareState={shareState}
             shareUrl={manualShareUrl}
-            canShare={Boolean(resultView && parser.trim() && input.trim())}
+            canShare={Boolean(parser.trim() && input.trim())}
             onShareUrl={() => {
               void handleShareUrl();
             }}

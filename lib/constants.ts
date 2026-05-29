@@ -31,8 +31,10 @@ export const MAX_HIGHLIGHT_RESULT_CHARS = 100_000;
 /** PRD §7.3 — on-screen JSON truncation */
 export const MAX_DISPLAY_RESULT_CHARS = 50_000;
 
-export const MAX_VISIBLE_PARSER_RESULTS = 40;
+/** Show all catalog matches in the parser picker (virtualized via scroll). */
+export const MAX_VISIBLE_PARSER_RESULTS = 500;
 export const PARSER_STORAGE_KEY = "parsedeck:last-format";
+export const AUTO_PARSE_STORAGE_KEY = "parsedeck:auto-parse";
 
 /** PRD §12 env defaults — applied in rate-limit module */
 export const PARSE_RATE_LIMIT_PER_MINUTE = envInt(

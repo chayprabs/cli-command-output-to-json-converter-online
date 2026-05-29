@@ -1,6 +1,8 @@
+import parserManifest from "./parser-manifest.json";
+
 const DEFAULT_PLACEHOLDER = `Paste raw command output here.
 
-Tip: choose a format above to load a realistic example.`;
+Choose a format above — the placeholder updates with a command hint when available.`;
 
 const PARSER_EXAMPLES: Record<string, string> = {
   ls: `total 48
@@ -53,8 +55,51 @@ MiB Mem :   7820.2 total,    910.4 free,   2794.1 used,   4115.7 buff/cache`,
   ss: `Netid State  Recv-Q Send-Q Local Address:Port   Peer Address:Port Process
 tcp   LISTEN 0      511      127.0.0.1:3000      0.0.0.0:*
 tcp   ESTAB  0      0        192.168.1.42:51614  104.18.6.218:443`,
+  route: `Kernel IP routing table
+Destination     Gateway         Genmask         Flags Metric Ref    Use Iface
+default         192.168.1.1     0.0.0.0         UG    100    0        0 eth0
+192.168.1.0     0.0.0.0         255.255.255.0   U     100    0        0 eth0`,
+  yaml: `name: example-service
+version: "1.0"
+replicas: 3`,
+  xml: `<?xml version="1.0"?>
+<root><item id="1">alpha</item></root>`,
+  csv: `name,role,active
+alice,admin,true
+bob,viewer,false`,
 };
 
+const manifestBySlug = new Map(
+  (parserManifest as { slug: string; description: string }[]).map((entry) => [
+    entry.slug,
+    entry.description,
+  ]),
+);
+
+function commandHintFromDescription(description: string) {
+  const match = description.match(/`([^`]+)`/);
+  return match?.[1];
+}
+
+export function getParserCommandHint(slug: string) {
+  const fromManifest = manifestBySlug.get(slug);
+  if (fromManifest) {
+    const hint = commandHintFromDescription(fromManifest);
+    if (hint) {
+      return hint;
+    }
+  }
+
+  return slug;
+}
+
 export function getParserExample(slug: string) {
-  return PARSER_EXAMPLES[slug] ?? DEFAULT_PLACEHOLDER;
+  if (PARSER_EXAMPLES[slug]) {
+    return PARSER_EXAMPLES[slug];
+  }
+
+  const hint = getParserCommandHint(slug);
+  return `# Paste output from: ${hint}
+#
+# Run the command in your terminal, copy the raw output, and paste it below.`;
 }

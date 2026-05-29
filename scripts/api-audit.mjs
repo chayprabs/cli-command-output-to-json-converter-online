@@ -1,4 +1,4 @@
-const baseUrl = process.env.BASE_URL ?? "http://127.0.0.1:3100";
+const baseUrl = process.env.BASE_URL ?? "http://127.0.0.1:3000";
 
 const lsInput = `total 48
 drwxr-xr-x  6 user user 4096 Apr  1 10:00 .
