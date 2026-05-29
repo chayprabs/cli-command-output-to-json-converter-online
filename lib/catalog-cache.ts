@@ -101,7 +101,12 @@ async function loadCatalogSnapshot(): Promise<CatalogSnapshot> {
  */
 export function getCatalogSnapshot(): Promise<CatalogSnapshot> {
   if (!catalogPromise) {
-    catalogPromise = loadCatalogSnapshot();
+    catalogPromise = loadCatalogSnapshot().then((snapshot) => {
+      if (!snapshot.available) {
+        catalogPromise = null;
+      }
+      return snapshot;
+    });
   }
 
   return catalogPromise;

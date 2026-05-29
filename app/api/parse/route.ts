@@ -179,8 +179,6 @@ export async function POST(request: Request) {
     selectedParser = payload.parser;
     inputBytes = readInputSize(payload.input);
 
-    headers = consumeParseRateLimit(clientIp, inputBytes).headers;
-
     const catalog = await getCatalogSnapshot();
 
     if (!catalog.available) {
@@ -198,6 +196,8 @@ export async function POST(request: Request) {
         "Unknown parser. Choose a parser from the catalog.",
       );
     }
+
+    headers = consumeParseRateLimit(clientIp, inputBytes).headers;
 
     const parsed = await parseWithFormat<unknown>(payload.parser, payload.input);
     subprocessExitCode = parsed.exitCode;

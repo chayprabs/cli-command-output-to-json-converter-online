@@ -17,9 +17,25 @@ const codeFont = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "ParseDeck",
+  title: {
+    default: "ParseDeck — Terminal output to JSON",
+    template: "%s",
+  },
   description:
-    "Paste terminal output, choose a format, and inspect structured JSON in one focused workspace.",
+    "Paste CLI output, pick a command format, and get structured JSON instantly. Free online parser powered by jc.",
+  keywords: [
+    "terminal to json",
+    "cli output parser",
+    "jc online",
+    "devops tools",
+    "parse terminal output",
+  ],
+  openGraph: {
+    title: "ParseDeck — Terminal output to JSON",
+    description:
+      "Paste CLI output, pick a format, and get structured JSON in your browser.",
+    type: "website",
+  },
 };
 
 const CONTENT_SECURITY_POLICY = [

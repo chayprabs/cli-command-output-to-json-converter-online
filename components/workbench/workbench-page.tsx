@@ -9,8 +9,10 @@ import {
   useState,
   useTransition,
 } from "react";
-import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { SeoBar } from "@/components/site/seo-bar";
+import { SiteFooter } from "@/components/site/site-footer";
+import { SiteHeader } from "@/components/site/site-header";
 import type {
   ApiErrorCode,
   ParseMeta,
@@ -66,10 +68,8 @@ import {
   type ResultErrorView,
   type ShareCopyState,
 } from "./result-panel";
-import { WorkbenchHeader } from "./workbench-header";
 import { cx } from "./workbench-styles";
 
-const GITHUB_URL: string | null = null;
 const LARGE_CSV_ROW_THRESHOLD = 2_000;
 
 type PendingSharedState = {
@@ -1302,31 +1302,21 @@ export function WorkbenchPage() {
   }
 
   return (
-    <main className="app-shell">
-      <div className="app-shell__content">
-        <WorkbenchHeader githubUrl={GITHUB_URL} />
+    <div className="app-page">
+      <SiteHeader />
+      <SeoBar />
 
-        <p className="privacy-banner" role="note">
-          Your input is never stored. Parsing happens on the server and the
-          result is returned immediately. Nothing is saved.
-        </p>
-
+      <main className="app-page__main">
         <div className="panel-grid">
-          <section className="panel">
+          <section className="panel" aria-labelledby="input-section-title">
             <div className="panel__header">
-              <div className="panel__title-group">
-                <p className="panel__eyebrow">Input</p>
-                <h2 className="panel__title">Raw CLI output</h2>
-                <p className="panel__description">
-                  Choose a parser, paste the original command output, and submit
-                  it for conversion. The placeholder updates with a live example
-                  for the selected parser.
-                </p>
+              <div>
+                <p className="panel__eyebrow">Step 1</p>
+                <h2 id="input-section-title" className="panel__title">
+                  Paste terminal output
+                </h2>
               </div>
-
-              <div className="status-chip status-chip--accent">
-                512 KB max (UTF-8)
-              </div>
+              <div className="status-chip status-chip--accent">512 KB max</div>
             </div>
 
             <div className="panel__body">
@@ -1620,22 +1610,9 @@ export function WorkbenchPage() {
             </section>
           </div>
         ) : null}
+      </main>
 
-        <footer className="footer">
-          <p>
-            © 2026 Chaitanya Prabuddha — MIT License.{" "}
-            <Link href="/privacy">Privacy</Link>
-            {" · "}
-            <Link href="/terms">Terms</Link>
-            {" · "}
-            <Link href="/credits">Credits</Link>
-          </p>
-          <p>
-            Parsing runtime: <code>jc</code> by Kelly Brazil (MIT). Not affiliated
-            with the jc project.
-          </p>
-        </footer>
-      </div>
-    </main>
+      <SiteFooter />
+    </div>
   );
 }

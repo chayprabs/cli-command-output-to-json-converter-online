@@ -301,15 +301,10 @@ export function ResultPanel({
     >
       <div className="panel__header">
         <div className="panel__title-group">
-          <p className="panel__eyebrow">Output</p>
+          <p className="panel__eyebrow">Step 2</p>
           <h2 className="panel__title">
-            {selectedParser ? selectedParser.slug : "JSON output"}
+            {selectedParser ? `${selectedParser.slug} → JSON` : "JSON output"}
           </h2>
-          <p className="panel__description">
-            {selectedParser
-              ? selectedParser.description
-              : "Structured JSON appears here after you choose a parser and run a sample."}
-          </p>
         </div>
 
         <div className="panel__actions">

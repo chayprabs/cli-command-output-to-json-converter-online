@@ -1,0 +1,15 @@
+.git
+.github
+node_modules
+.next
+test-results
+playwright-report
+blob-report
+playwright/.cache
+*.log
+.env
+.env.*
+!.env.example
+tests
+*.md
+!README.md

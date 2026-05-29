@@ -1,99 +1,82 @@
 # ParseDeck
 
-ParseDeck is a focused web workspace for turning pasted terminal output into structured JSON. Choose a format, drop in raw text, and inspect highlighted results without leaving the browser.
+ParseDeck is a free web tool that turns pasted terminal output into structured JSON. Choose a command format (for example `ls`, `ps`, or `dig`), paste raw CLI output, and get JSON you can copy or download—right in your browser.
 
-## Why ParseDeck Exists
+**Live workflow:** pick a parser → paste output → click **Parse output** → inspect JSON below.
 
-Terminal output is great for humans and awkward for automation. ParseDeck gives teams a faster way to validate command output, shape it into JSON, and move the result into scripts, runbooks, dashboards, or incident notes.
+## Features
 
-## Who It's For
-
-- Sysadmins validating command output before automating around it
-- DevOps and platform engineers shaping diagnostics into structured data
-- Automation engineers prototyping parsing flows without building a UI first
-- Support and operations teams who need quick JSON output during investigations
-
-## What It Does
-
-- Loads a searchable format catalog at startup
-- Accepts pasted multi-line terminal output
-- Returns structured JSON with timing and payload metadata
-- Highlights JSON tokens for easier scanning
-- Lets you copy parsed output with one click
+- Searchable catalog of 170+ formats from the installed `jc` runtime
+- Paste multi-line terminal output (up to 512 KB UTF-8 per request)
+- Syntax-highlighted JSON with copy and download (JSON / CSV when applicable)
+- Shareable URL state (hash-encoded; optional)
+- No accounts, no stored input, fair-use rate limits
+- MIT-licensed open source
 
 ## Requirements
 
-- Node.js 18.18 or newer
-- Python 3.x
-- A working `jc` installation available through `jc`, `python -m jc`, or `py -m jc`
+- **Node.js** 18.18+
+- **Python 3** with **`jc`** (`pip install jc`)
 
-## Run Locally
-
-1. Install JavaScript dependencies:
+## Run locally
 
 ```bash
 npm install
-```
-
-2. Install the parsing runtime:
-
-```bash
 pip install jc
-```
-
-3. Start the development server:
-
-```bash
 npm run dev
 ```
 
-4. Open the local app in your browser:
+Open [http://127.0.0.1:3000](http://127.0.0.1:3000).
 
-```text
-http://127.0.0.1:3000
-```
+## Environment (optional)
 
-## Supported Formats
+Copy `.env.example` to `.env.local`:
 
-ParseDeck reads the available format catalog from the installed parsing runtime when the app starts, so the exact list tracks the version you have installed. Common choices include:
-
-- `ls`
-- `ps`
-- `ping`
-- `df`
-- `du`
-- `env`
-- `dig`
-- `ifconfig`
-- `netstat`
-- `systemctl`
-- `top`
-- `ss`
-- `route`
-- `yaml`
-- `xml`
-- `csv`
+| Variable | Purpose |
+|----------|---------|
+| `NEXT_PUBLIC_CONTACT_EMAIL` | Shown on Privacy Policy |
+| `NEXT_PUBLIC_GITHUB_URL` | GitHub link in header |
+| `PARSE_TIMEOUT_MS` | Parser timeout (default 15000) |
+| `RATE_LIMIT_REQUESTS_PER_MINUTE` | Per-IP limit (default 20) |
 
 ## API
 
-`GET /api/parsers`
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/parsers` | GET | List `{ slug, description }[]` |
+| `/api/parse` | POST | Body: `{ "parser": "ls", "input": "..." }` |
+| `/api/health` | GET | Health check |
 
-- Returns the available format catalog as `{ slug, description }[]`
+## Scripts
 
-`POST /api/parse`
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Development server |
+| `npm run build` | Production build |
+| `npm run start` | Production server |
+| `npm run ci:local` | Full local CI (typecheck, build, integration, e2e) |
+| `npm run test:e2e` | Playwright browser tests |
+| `npm run sync:parser-manifest` | Refresh parser manifest from `jc` |
 
-- Accepts JSON shaped like `{ "parser": "ls", "input": "<raw terminal output>" }`
-- Returns parsed data plus timing and byte metadata
+## Docker
 
-## Built With
+```bash
+docker build -t parsedeck .
+docker run -p 3000:3000 parsedeck
+```
 
-- Next.js 15
-- React 19
-- Tailwind CSS 4
-- `jc` by Kelly Brazil as the parsing runtime behind the format catalog and JSON conversion flow
+## Legal
 
-The upstream `jc` project is licensed under MIT. ParseDeck keeps its attribution and license notice in [NOTICE](./NOTICE).
+- [Privacy Policy](/privacy)
+- [Terms & Conditions](/terms)
+
+## Built with
+
+- [Next.js](https://nextjs.org) 15 · React 19 · Tailwind CSS 4
+- [jc](https://github.com/kellyjonbrazil/jc) by Kelly Brazil (MIT) — parsing runtime
+
+Third-party attribution: [NOTICE](./NOTICE).
 
 ## License
 
-ParseDeck is released under the MIT License. Third-party attribution and license text live in [NOTICE](./NOTICE).
+MIT © [Chaitanya Prabuddha](https://www.chaitanyaprabuddha.com)

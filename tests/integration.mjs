@@ -282,9 +282,9 @@ const tests = [
   },
   {
     id: "P13",
-    expected: "GET /credits returns 200",
+    expected: "GET / returns 200 (home page)",
     run: async () => {
-      const { response } = await request("/credits");
+      const { response } = await request("/");
       return {
         pass: response.status === 200,
         actual: summarize({ status: response.status }),

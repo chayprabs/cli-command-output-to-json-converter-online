@@ -1,4 +1,5 @@
 import type { ApiErrorResponse, HealthApiResponse } from "@/lib/api";
+import { getCatalogSnapshot } from "@/lib/catalog-cache";
 import { normalizeAppError } from "@/lib/errors";
 import {
   jsonResponse,

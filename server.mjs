@@ -1,7 +1,8 @@
 import http from "node:http";
 
 const CONNECTION_HEADERS_TIMEOUT_MS = 5_000;
-const CONNECTION_REQUEST_TIMEOUT_MS = 10_000;
+/** Must exceed jc parse timeout (default 15s) + request handling */
+const CONNECTION_REQUEST_TIMEOUT_MS = 25_000;
 const CONNECTION_KEEP_ALIVE_TIMEOUT_MS = 5_000;
 
 const dev = process.argv.includes("--dev");
