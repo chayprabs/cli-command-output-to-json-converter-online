@@ -1,7 +1,18 @@
 import http from "node:http";
 
+function envInt(name, fallback) {
+  const value = process.env[name];
+  if (!value) {
+    return fallback;
+  }
+
+  const parsed = Number.parseInt(value, 10);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+const PARSER_RUNTIME_TIMEOUT_MS = envInt("PARSE_TIMEOUT_MS", 15_000);
 const CONNECTION_HEADERS_TIMEOUT_MS = 5_000;
-const CONNECTION_REQUEST_TIMEOUT_MS = 25_000;
+const CONNECTION_REQUEST_TIMEOUT_MS = PARSER_RUNTIME_TIMEOUT_MS + 10_000;
 const CONNECTION_KEEP_ALIVE_TIMEOUT_MS = 5_000;
 
 const dev = process.argv.includes("--dev");

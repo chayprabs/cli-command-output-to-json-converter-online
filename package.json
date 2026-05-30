@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "description": "Paste terminal output, choose a format, and turn raw text into structured JSON for automation and debugging.",
-  "author": "CLI Parse Web",
+  "author": "Chaitanya Prabuddha",
   "license": "MIT",
   "keywords": [
     "terminal",

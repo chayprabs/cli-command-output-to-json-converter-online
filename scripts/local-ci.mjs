@@ -44,6 +44,7 @@ async function waitForHealth() {
 }
 
 await runCommand(process.execPath, [npmCli, "run", "check:parser-manifest"]);
+await runCommand(process.execPath, [npmCli, "run", "license:check"]);
 await runCommand(process.execPath, [npmCli, "run", "typecheck"]);
 await runCommand(process.execPath, [npmCli, "run", "lint"]);
 await runCommand(process.execPath, [npmCli, "run", "build"]);

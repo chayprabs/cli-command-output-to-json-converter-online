@@ -52,7 +52,8 @@ export const BUSY_RETRY_AFTER_SECONDS = 1;
 export const RUNTIME_UNAVAILABLE_RETRY_AFTER_SECONDS = 60;
 export const EXECUTION_TIMEOUT_RETRY_AFTER_SECONDS = 10;
 export const CONNECTION_HEADERS_TIMEOUT_MS = 5_000;
-export const CONNECTION_REQUEST_TIMEOUT_MS = 10_000;
+/** Must exceed PARSER_RUNTIME_TIMEOUT_MS so long parses are not cut off at the socket layer. */
+export const CONNECTION_REQUEST_TIMEOUT_MS = PARSER_RUNTIME_TIMEOUT_MS + 10_000;
 export const CONNECTION_KEEP_ALIVE_TIMEOUT_MS = 5_000;
 
 /** PRD §9 — URL-encoded share state length guard */

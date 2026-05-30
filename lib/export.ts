@@ -104,7 +104,10 @@ async function yieldToBrowser() {
   });
 }
 
-export function generateFilename(parser: string, extension: "json" | "csv") {
+export function generateFilename(
+  parser: string,
+  extension: "json" | "csv" | "yaml",
+) {
   const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, "-");
   return `${sanitizeParserName(parser)}-output-${timestamp}.${extension}`;
 }
